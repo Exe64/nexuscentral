@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  A typical reader export: folders as enclosing outlines, one feed listed at the
+  top level, one container that closes before the next opens, and one outline
+  with a type="rss" but no xmlUrl (which cannot be imported).
+-->
+<opml version="1.0">
+  <head>
+    <title>My Subscriptions</title>
+  </head>
+  <body>
+    <outline text="Infrastructure">
+      <outline text="Storage">
+        <outline type="rss" text="Nutanix Blog" xmlUrl="https://www.nutanix.com/blog/rss.xml" htmlUrl="https://www.nutanix.com/blog"/>
+        <outline type="rss" text="Ceph Weekly" xmlUrl="https://ceph.example.org/atom.xml"/>
+      </outline>
+      <outline text="Networking">
+        <outline type="rss" text="Cilium News" xmlUrl="https://cilium.example.net/feed"/>
+      </outline>
+    </outline>
+    <outline type="rss" text="Cloud Native Digest" xmlUrl="https://digest.example.io/feed.xml" category="Weekly, Digests"/>
+    <outline type="rss" text="Broken entry with no feed URL"/>
+    <outline type="rss" text="Ampersands &amp; entities" xmlUrl="https://amp.example.com/feed?a=1&amp;b=2"/>
+  </body>
+</opml>

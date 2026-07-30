@@ -4,6 +4,8 @@ export default defineConfig({
   test: {
     environment: 'node',
     include: ['test/**/*.test.ts', 'src/**/*.test.ts'],
+    // Integration tests need a real PostgreSQL and run under their own config.
+    exclude: ['test/integration/**'],
     env: {
       NODE_ENV: 'test',
       LOG_LEVEL: 'silent',

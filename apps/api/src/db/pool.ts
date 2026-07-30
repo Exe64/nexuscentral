@@ -31,7 +31,11 @@ pool.on('error', (err) => {
   logger.error({ err }, 'Idle PostgreSQL client errored');
 });
 
-export type QueryParam = string | number | boolean | Date | null | readonly unknown[] | Buffer;
+/**
+ * Recursive so that array parameters -- `$1::int[]`, and the parallel arrays a
+ * batch insert unnests -- typecheck without a cast at the call site.
+ */
+export type QueryParam = string | number | boolean | Date | null | Buffer | readonly QueryParam[];
 
 /** Run a query on the pool. Prefer this over reaching for `pool` directly. */
 export async function query<T extends pg.QueryResultRow = pg.QueryResultRow>(

@@ -9,6 +9,7 @@ import { env, isProduction } from './config/env.js';
 import { createApp } from './http/app.js';
 import { logger } from './logger.js';
 import { VERSION } from './version.js';
+import { startWorker, stopWorker } from './worker/index.js';
 
 /**
  * The app ships with no authentication of its own and expects Nginx in front of
@@ -47,6 +48,12 @@ function installShutdownHandlers(server: Server): void {
     server.close((err) => {
       void (async (): Promise<void> => {
         if (err) logger.error({ err }, 'Error closing HTTP server');
+        try {
+          // Let in-flight polls finish before the pool they use goes away.
+          await stopWorker();
+        } catch (workerErr) {
+          logger.error({ err: workerErr }, 'Error stopping worker');
+        }
         try {
           await closePool();
         } catch (poolErr) {
@@ -88,8 +95,13 @@ function main(): void {
     );
 
     if (env.WORKER_ENABLED) {
-      // Workers arrive in Phase 1 (pg-boss scheduler, poll:tick, poll:source).
-      logger.info('Worker is enabled but not yet implemented');
+      // Started after the server is listening: a worker that cannot reach
+      // PostgreSQL must not stop /api/health from reporting why.
+      void startWorker().catch((err: unknown) => {
+        logger.error({ err }, 'Worker failed to start; polling is not running');
+      });
+    } else {
+      logger.info('Worker is disabled in this process (WORKER_ENABLED=false)');
     }
   });
 
