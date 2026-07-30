@@ -1,0 +1,12 @@
+{
+  "app.name": "feedhub",
+  "app.tagline": "Your technology watch, in one place.",
+
+  "health.checking": "Checking the API…",
+  "health.ok": "API reachable — version {version}",
+  "health.error": "The API is up but its database is unreachable.",
+  "health.unreachable": "Cannot reach the API. Check that it is running.",
+  "health.retry": "Try again",
+
+  "common.loading": "Loading…"
+}

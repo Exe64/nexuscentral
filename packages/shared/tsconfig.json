@@ -1,0 +1,15 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    // These are type-only declarations consumed by both a Node process and a
+    // browser bundle, so the package must not pull in @types/node. `DOM` covers
+    // the one platform global the adapter contract needs: AbortSignal.
+    "lib": ["ES2023", "DOM"],
+    "types": [],
+    "outDir": "./dist",
+    "rootDir": "./src"
+  },
+  "include": ["src/**/*.ts"]
+}

@@ -1,0 +1,70 @@
+# feedhub -- Docker Compose for a single-user self-hosted deployment.
+#
+# Topology: the host Nginx terminates TLS and handles authentication, then
+# proxies everything to the `web` container. `web` serves the built SPA and
+# forwards /api to `api`. `api` is not published to the host; `postgres` is not
+# published at all.
+#
+#   docker compose up -d
+#   docker compose exec api pnpm migrate up
+
+name: feedhub
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-feedhub}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-feedhub}
+      # Deterministic collation and encoding, independent of the host locale.
+      POSTGRES_INITDB_ARGS: '--encoding=UTF8 --locale=C'
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-feedhub} -d ${POSTGRES_DB:-feedhub}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-feedhub}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-feedhub}
+      NODE_ENV: production
+      # Reachable from `web` over the Docker network only -- there is no ports
+      # mapping below, so nothing on the host can connect directly.
+      BIND_ADDR: 0.0.0.0
+      PORT: '3000'
+      # One proxy hop inside the network (web) plus the host Nginx.
+      TRUST_PROXY: ${TRUST_PROXY:-2}
+      WORKER_ENABLED: ${WORKER_ENABLED:-true}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      REDDIT_CLIENT_ID: ${REDDIT_CLIENT_ID:-}
+      REDDIT_CLIENT_SECRET: ${REDDIT_CLIENT_SECRET:-}
+      REDDIT_USER_AGENT: ${REDDIT_USER_AGENT:-feedhub/1.0 (self-hosted personal aggregator)}
+      NITTER_BASE_URLS: ${NITTER_BASE_URLS:-}
+      ALLOW_PRIVATE_TARGETS: ${ALLOW_PRIVATE_TARGETS:-false}
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_started
+    ports:
+      # Published on loopback only: the host Nginx proxies to it.
+      - '${WEB_BIND_ADDR:-127.0.0.1}:${WEB_PORT:-8080}:80'
+
+volumes:
+  postgres-data:

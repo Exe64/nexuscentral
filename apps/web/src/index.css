@@ -1,0 +1,7 @@
+@import 'tailwindcss';
+
+/*
+ * Theme tokens -- the OKLCH accent ramp and the semantic tokens components
+ * reference -- land in Phase 4 (04-SPEC-frontend.md 5). Until then the shell is
+ * deliberately plain: Phase 1 ships an unstyled reader.
+ */
