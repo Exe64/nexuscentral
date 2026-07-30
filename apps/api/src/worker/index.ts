@@ -23,8 +23,31 @@ const log = logger.child({ component: 'worker' });
 
 let boss: PgBoss | null = null;
 
+/**
+ * Set by `startWorker` before it awaits anything, so a request that arrives
+ * during startup can wait for the queues instead of finding a null instance.
+ *
+ * The HTTP server starts listening before the worker is ready -- deliberately,
+ * so `/api/health` can report an unreachable database rather than hanging. That
+ * leaves a window in which a source can be created, and without this a poll
+ * enqueued in that window would be dropped with only a log line to show for it.
+ */
+let startPromise: Promise<PgBoss> | null = null;
+
 export function getBoss(): PgBoss | null {
   return boss;
+}
+
+/** Resolves once the queues exist, or null when no worker runs in this process. */
+async function readyBoss(): Promise<PgBoss | null> {
+  if (boss !== null) return boss;
+  if (startPromise === null) return null;
+  try {
+    return await startPromise;
+  } catch {
+    // startWorker already logged the failure; the caller reports "not queued".
+    return null;
+  }
 }
 
 /**
@@ -37,14 +60,15 @@ export async function enqueuePoll(
   sourceId: number,
   options: { immediate?: boolean } = {},
 ): Promise<string | null> {
-  if (boss === null) {
-    log.warn({ sourceId }, 'Cannot enqueue a poll: the worker is not running');
+  const instance = await readyBoss();
+  if (instance === null) {
+    log.warn({ sourceId }, 'Cannot enqueue a poll: no worker is running in this process');
     return null;
   }
 
   const startAfter = options.immediate === true ? 0 : jitterSeconds();
 
-  return boss.send(QUEUE.pollSource, { sourceId } satisfies PollSourceData, {
+  return instance.send(QUEUE.pollSource, { sourceId } satisfies PollSourceData, {
     startAfter,
     // One queued poll per source at a time; see QUEUE_DEFINITIONS.
     singletonKey: String(sourceId),
@@ -82,7 +106,20 @@ async function handlePollBatch(jobs: PgBoss.Job<PollSourceData>[]): Promise<void
 
 export async function startWorker(): Promise<PgBoss> {
   if (boss !== null) return boss;
+  // Assigned synchronously so a concurrent enqueue has something to await.
+  if (startPromise !== null) return startPromise;
 
+  startPromise = start();
+  try {
+    return await startPromise;
+  } catch (err) {
+    // Clear it so a later call can retry rather than replaying the failure.
+    startPromise = null;
+    throw err;
+  }
+}
+
+async function start(): Promise<PgBoss> {
   const instance = new PgBoss({
     connectionString: env.DATABASE_URL,
     // Its own schema, so `pg_dump` of the application tables stays readable and
@@ -115,9 +152,13 @@ export async function startWorker(): Promise<PgBoss> {
 }
 
 export async function stopWorker(): Promise<void> {
-  if (boss === null) return;
-  const instance = boss;
+  // A shutdown signal can arrive mid-startup; wait for the instance rather than
+  // leaving a half-started pg-boss holding connections.
+  const instance = boss ?? (startPromise === null ? null : await startPromise.catch(() => null));
+  if (instance === null) return;
+
   boss = null;
+  startPromise = null;
   // Let in-flight polls finish rather than orphaning them as active jobs.
   await instance.stop({ graceful: true, wait: true, timeout: 15_000 });
   log.info('Worker stopped');

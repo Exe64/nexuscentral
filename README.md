@@ -17,9 +17,32 @@ in that order; `05-BUILD-PLAN.md` defines the phase order and the acceptance cri
 
 ## Status
 
-**Phase 0 — scaffolding. Complete.** The API serves `GET /api/health`, migration `001_initial`
-applies the full schema and rolls back cleanly, and both apps build. No ingestion yet: that
-is Phase 1.
+**Phase 1 — sources, tags and RSS ingestion. Complete.**
+
+Working today: tags and sources CRUD with the resolve preview, the RSS/Atom adapter with
+conditional requests, the `pg-boss` scheduler with per-source backoff, deduplication, OPML
+import and export, and a plain reader at `/reader`.
+
+Not yet built: Reddit and Nitter adapters (Phase 2), scoring and rules (Phase 3), theming
+(Phase 4), the dashboard grid (Phase 5), alert delivery and `custom_api` widgets (Phase 6).
+A source whose kind has no adapter yet records a poll failure explaining why, rather than
+looking healthy and silently producing nothing.
+
+## Testing
+
+```bash
+pnpm test                                   # unit tests, no network, no database
+pnpm --filter @feedhub/api test:integration # against a real PostgreSQL
+```
+
+Integration tests need the dev database running and truncate every table between tests.
+Point `INTEGRATION_DATABASE_URL` elsewhere if the default is not disposable; the suite
+creates the database and applies the real migrations, so a migration that does not apply
+cleanly fails the run.
+
+There is deliberately no frontend E2E suite. The web tests render each page against a
+stubbed API, and a separate test walks every `t()` call site to check the copy contract —
+no missing keys, no unused keys, no string hardcoded in a component.
 
 ## Stack
 
