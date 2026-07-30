@@ -11,6 +11,7 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { Layout } from './components/Layout.tsx';
 import { I18nProvider } from './i18n.tsx';
 import { Reader } from './pages/Reader.tsx';
+import { Rules } from './pages/Rules.tsx';
 import { Settings } from './pages/Settings.tsx';
 import { Sources } from './pages/Sources.tsx';
 import { Tags } from './pages/Tags.tsx';
@@ -25,6 +26,7 @@ export function App(): ReactNode {
             <Route path="/reader" element={<Reader />} />
             <Route path="/sources" element={<Sources />} />
             <Route path="/tags" element={<Tags />} />
+            <Route path="/rules" element={<Rules />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="*" element={<Navigate to="/reader" replace />} />
           </Routes>

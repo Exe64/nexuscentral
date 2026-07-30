@@ -11,7 +11,7 @@ export const app = createApp();
  */
 export async function resetDatabase(): Promise<void> {
   await query(`
-    TRUNCATE TABLE alerts, items, source_tags, sources, tags, widgets, dashboards
+    TRUNCATE TABLE alerts, items, rules, source_tags, sources, tags, widgets, dashboards
     RESTART IDENTITY CASCADE
   `);
 }

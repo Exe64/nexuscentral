@@ -137,8 +137,32 @@ export interface Rule {
   active: boolean;
   /** When non-empty, restricts the rule to sources carrying one of these tags. */
   tagFilter: number[];
+  /**
+   * Set when the rule was deactivated for exceeding its matching time budget
+   * (02-SPEC-ingestion.md 5.3). The UI surfaces it so a rule that stopped working
+   * says why.
+   */
+  lastError: string | null;
+  lastErrorAt: string | null;
   createdAt: string;
 }
+
+/** A dry run of a pattern against real items (03-SPEC-api.md 5). */
+export interface RuleTestMatch {
+  itemId: string;
+  title: string;
+  sourceTitle: string;
+  highlight: { field: 'title' | 'summary' | 'author'; start: number; end: number };
+}
+
+export type RuleTestResult =
+  | {
+      valid: true;
+      matchCount: number;
+      sampleSize: number;
+      matches: RuleTestMatch[];
+    }
+  | { valid: false; error: string };
 
 export interface Alert {
   id: string;

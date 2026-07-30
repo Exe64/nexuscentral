@@ -14,7 +14,11 @@ import {
 } from '@tanstack/react-query';
 import type {
   Item,
+  ItemDetail,
   ItemSort,
+  Rule,
+  RuleScope,
+  RuleTestResult,
   Settings,
   Source,
   SourceKind,
@@ -40,6 +44,9 @@ export const keys = {
     filters === undefined ? (['sources'] as const) : (['sources', filters] as const),
   source: (id: number) => ['sources', id] as const,
   items: (filters: ItemListFilters) => ['items', filters] as const,
+  item: (id: string) => ['items', 'detail', id] as const,
+  rules: ['rules'] as const,
+  ruleTest: (input: RuleTestInput) => ['rules', 'test', input] as const,
   settings: ['settings'] as const,
   health: ['health'] as const,
 };
@@ -315,6 +322,110 @@ export function useMarkAllRead(): UseMutationResult<{ updated: number }, Error, 
       void client.invalidateQueries({ queryKey: ['items'] });
       void client.invalidateQueries({ queryKey: keys.tags });
     },
+  });
+}
+
+// --- rules -----------------------------------------------------------------
+
+export function useRules(): UseQueryResult<Rule[]> {
+  return useQuery({
+    queryKey: keys.rules,
+    queryFn: async () => (await apiFetch<Envelope<Rule[]>>('/rules')).data,
+  });
+}
+
+export interface RuleBody {
+  name: string;
+  pattern: string;
+  flags?: string;
+  scope?: RuleScope;
+  weight?: number;
+  alert?: boolean;
+  active?: boolean;
+  tagFilter?: number[];
+}
+
+/**
+ * Creating, updating or deleting a rule enqueues a debounced rescore, so the
+ * scores the reader shows are about to change.
+ */
+function invalidateAfterRuleChange(client: ReturnType<typeof useQueryClient>): void {
+  void client.invalidateQueries({ queryKey: keys.rules });
+  void client.invalidateQueries({ queryKey: ['items'] });
+}
+
+export function useCreateRule(): UseMutationResult<Rule, Error, RuleBody> {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (body) =>
+      (await apiFetch<Envelope<Rule>>('/rules', { method: 'POST', body })).data,
+    onSuccess: () => invalidateAfterRuleChange(client),
+  });
+}
+
+export function useUpdateRule(): UseMutationResult<
+  Rule,
+  Error,
+  { id: number } & Partial<RuleBody>
+> {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, ...body }) =>
+      (await apiFetch<Envelope<Rule>>(`/rules/${id}`, { method: 'PATCH', body })).data,
+    onSuccess: () => invalidateAfterRuleChange(client),
+  });
+}
+
+export function useDeleteRule(): UseMutationResult<void, Error, number> {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (id) => {
+      await apiFetch<void>(`/rules/${id}`, { method: 'DELETE' });
+    },
+    onSuccess: () => invalidateAfterRuleChange(client),
+  });
+}
+
+export interface RuleTestInput {
+  pattern: string;
+  flags: string;
+  scope: RuleScope;
+  tagFilter: number[];
+}
+
+/**
+ * The live test panel.
+ *
+ * A query rather than a mutation: it is a read, it should be cached per input, and
+ * `enabled` lets the caller hold it back until the pattern is worth sending.
+ */
+export function useRuleTest(
+  input: RuleTestInput,
+  enabled: boolean,
+): UseQueryResult<RuleTestResult> {
+  return useQuery({
+    queryKey: keys.ruleTest(input),
+    enabled,
+    // An invalid pattern is a legitimate answer, not a failure to retry.
+    retry: false,
+    staleTime: 10_000,
+    queryFn: () => apiFetch<RuleTestResult>('/rules/test', { method: 'POST', body: input }),
+  });
+}
+
+// --- item detail -----------------------------------------------------------
+
+export interface ItemDetailResponse extends ItemDetail {
+  /** The score recomputed now, which drifts from the stored one as time passes. */
+  liveScore: number;
+}
+
+/** Backs the score-breakdown popover: how a rule set gets debugged. */
+export function useItemDetail(id: string | null): UseQueryResult<ItemDetailResponse> {
+  return useQuery({
+    queryKey: keys.item(id ?? ''),
+    enabled: id !== null,
+    queryFn: async () => (await apiFetch<Envelope<ItemDetailResponse>>(`/items/${id ?? ''}`)).data,
   });
 }
 

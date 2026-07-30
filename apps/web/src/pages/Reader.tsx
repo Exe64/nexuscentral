@@ -16,6 +16,7 @@ import {
   useTags,
   type ItemListFilters,
 } from '../api/queries.ts';
+import { ScoreBreakdown } from '../components/ScoreBreakdown.tsx';
 import { useT, type Translate } from '../i18n.tsx';
 import { absoluteTime, relativeTime } from '../lib/format.ts';
 
@@ -33,6 +34,7 @@ function ItemRow({
   onToggleStar: (item: Item) => void;
 }): ReactNode {
   const isRead = item.readAt !== null;
+  const [explaining, setExplaining] = useState(false);
 
   return (
     <li>
@@ -58,11 +60,28 @@ function ItemRow({
             {relativeTime(item.publishedAt)}
           </time>
           {item.engagementScore !== null && <span>{` · ${item.engagementScore} points`}</span>}
-          <span>{` · ${item.score.toFixed(2)}`}</span>
+          {' · '}
+          {/* The score badge is the entry point to the explanation; that is how a
+              rule set gets debugged. */}
+          <button
+            type="button"
+            aria-label={t('breakdown.open')}
+            onClick={() => setExplaining((open) => !open)}
+          >
+            {item.score.toFixed(2)}
+          </button>
           {item.source.tags.length > 0 && (
             <span>{` · ${item.source.tags.map((tag) => tag.name).join(', ')}`}</span>
           )}
         </p>
+
+        {explaining && (
+          <ScoreBreakdown
+            itemId={item.id}
+            storedScore={item.score}
+            onClose={() => setExplaining(false)}
+          />
+        )}
 
         {item.summary !== null && <p>{item.summary}</p>}
 

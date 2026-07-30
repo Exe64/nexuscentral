@@ -10,13 +10,19 @@ import { env } from '../config/env.js';
 import { logger } from '../logger.js';
 import { listDueSourceIds } from '../db/sources.js';
 import { pollSource } from '../ingest/runner.js';
+import { refreshScores, rescoreRecent, scoreItems } from '../scoring/rescore.js';
 import {
   POLL_CONCURRENCY,
   POLL_JITTER_SECONDS,
   POLL_TIMEOUT_SECONDS,
   QUEUE,
   QUEUE_DEFINITIONS,
+  RESCORE_DEBOUNCE_SECONDS,
+  RESCORE_TIMEOUT_SECONDS,
+  SCORE_BATCH_SIZE,
   type PollSourceData,
+  type RescoreData,
+  type ScoreItemsData,
 } from './queues.js';
 
 const log = logger.child({ component: 'worker' });
@@ -81,6 +87,38 @@ function jitterSeconds(): number {
   return Math.floor(Math.random() * (POLL_JITTER_SECONDS + 1));
 }
 
+/**
+ * Request a rescore of the last 30 days, debounced.
+ *
+ * Called on every rule create, update and delete. The queue's `short` policy plus
+ * the delay mean several rapid edits collapse into the one job already waiting,
+ * rather than queueing five.
+ */
+export async function enqueueRescore(reason: string): Promise<string | null> {
+  const instance = await readyBoss();
+  if (instance === null) {
+    log.warn({ reason }, 'Cannot enqueue a rescore: no worker is running in this process');
+    return null;
+  }
+
+  return instance.send(QUEUE.rescoreAll, { reason } satisfies RescoreData, {
+    startAfter: RESCORE_DEBOUNCE_SECONDS,
+    singletonKey: 'all',
+    expireInSeconds: RESCORE_TIMEOUT_SECONDS,
+    retryLimit: 0,
+  });
+}
+
+/** Score the items a poll just inserted. */
+async function enqueueScoreItems(itemIds: readonly string[]): Promise<void> {
+  if (itemIds.length === 0) return;
+
+  const instance = await readyBoss();
+  if (instance === null) return;
+
+  await instance.send(QUEUE.scoreItems, { itemIds: [...itemIds] } satisfies ScoreItemsData);
+}
+
 /** `poll:tick` -- enqueue every due source. */
 async function handleTick(): Promise<void> {
   const dueIds = await listDueSourceIds();
@@ -101,7 +139,41 @@ async function handleTick(): Promise<void> {
 async function handlePollBatch(jobs: PgBoss.Job<PollSourceData>[]): Promise<void> {
   // pollSource never throws, so one bad source cannot fail the batch and put its
   // siblings back on the queue.
-  await Promise.all(jobs.map((job) => pollSource(job.data.sourceId)));
+  const outcomes = await Promise.all(jobs.map((job) => pollSource(job.data.sourceId)));
+
+  // Scoring is its own job so a slow rule set cannot eat into the poll timeout.
+  const insertedIds = outcomes.flatMap((outcome) => outcome.insertedIds);
+  await enqueueScoreItems(insertedIds);
+}
+
+/**
+ * `score:items` -- score newly inserted items.
+ *
+ * Several polls' worth of ids are merged into one run: each run spins up a worker
+ * thread for the regexes, and doing that per poll would be wasteful.
+ */
+async function handleScoreItems(jobs: PgBoss.Job<ScoreItemsData>[]): Promise<void> {
+  const itemIds = [...new Set(jobs.flatMap((job) => job.data.itemIds))];
+  if (itemIds.length === 0) return;
+
+  const result = await scoreItems(itemIds);
+  log.info({ ...result, jobs: jobs.length }, 'Scored newly ingested items');
+}
+
+/** `rescore:all` -- re-evaluate every pattern over the last 30 days. */
+async function handleRescoreAll(jobs: PgBoss.Job<RescoreData>[]): Promise<void> {
+  const reasons = [...new Set(jobs.map((job) => job.data.reason))];
+  const result = await rescoreRecent();
+
+  // Alerts are never generated here. Turning on alerting for a rule must not fire
+  // hundreds of notifications about items already read.
+  log.info({ ...result, reasons }, 'Rescored recent items');
+}
+
+/** `score:refresh` -- hourly, arithmetic only. */
+async function handleScoreRefresh(): Promise<void> {
+  const result = await refreshScores();
+  log.info(result, 'Refreshed scores');
 }
 
 export async function startWorker(): Promise<PgBoss> {
@@ -141,10 +213,15 @@ async function start(): Promise<PgBoss> {
 
   await instance.work(QUEUE.pollTick, { batchSize: 1 }, handleTick);
   await instance.work(QUEUE.pollSource, { batchSize: POLL_CONCURRENCY }, handlePollBatch);
+  await instance.work(QUEUE.scoreItems, { batchSize: SCORE_BATCH_SIZE }, handleScoreItems);
+  await instance.work(QUEUE.rescoreAll, { batchSize: 1 }, handleRescoreAll);
+  await instance.work(QUEUE.scoreRefresh, { batchSize: 1 }, handleScoreRefresh);
 
   // Every minute. The tick itself is cheap; the jitter on each enqueued poll is
   // what spreads the actual work out.
   await instance.schedule(QUEUE.pollTick, '* * * * *');
+  // Hourly, because the decay term drifts with time even when nothing changed.
+  await instance.schedule(QUEUE.scoreRefresh, '7 * * * *');
 
   boss = instance;
   log.info({ concurrency: POLL_CONCURRENCY }, 'Worker started');

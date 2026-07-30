@@ -34,6 +34,11 @@ export interface PollOutcome {
   status: 'ok' | 'not_modified' | 'no_new_items' | 'empty' | 'failed' | 'skipped';
   itemCount: number;
   newCount: number;
+  /**
+   * Ids of rows that were genuinely new, for the scoring job. Only these may be
+   * scored or alerted on.
+   */
+  insertedIds: string[];
   durationMs: number;
   httpStatus?: number;
   error?: string;
@@ -59,10 +64,11 @@ export async function pollSource(sourceId: number): Promise<PollOutcome> {
       status: 'skipped',
       itemCount: 0,
       newCount: 0,
+      insertedIds: [],
       durationMs: Date.now() - startedAt,
       error: 'source no longer exists',
     };
-    log.info(outcome, 'Poll skipped');
+    log.info(logPayload(outcome), 'Poll skipped');
     return outcome;
   }
 
@@ -77,11 +83,12 @@ export async function pollSource(sourceId: number): Promise<PollOutcome> {
       status: 'failed',
       itemCount: 0,
       newCount: 0,
+      insertedIds: [],
       durationMs: Date.now() - startedAt,
       error: `No adapter for kind "${source.kind}"`,
       deactivated: failure.deactivated,
     };
-    log.warn(outcome, 'Poll failed');
+    log.warn(logPayload(outcome), 'Poll failed');
     return outcome;
   }
 
@@ -107,10 +114,11 @@ export async function pollSource(sourceId: number): Promise<PollOutcome> {
         status: 'not_modified',
         itemCount: 0,
         newCount: 0,
+        insertedIds: [],
         durationMs: Date.now() - startedAt,
         httpStatus: 304,
       };
-      log.info({ ...outcome, kind: source.kind }, 'Poll complete');
+      log.info(logPayload(outcome, source.kind), 'Poll complete');
       return outcome;
     }
 
@@ -138,6 +146,7 @@ export async function pollSource(sourceId: number): Promise<PollOutcome> {
         outcomeKind === 'items' ? 'ok' : outcomeKind === 'unchanged' ? 'no_new_items' : 'empty',
       itemCount: result.items.length,
       newCount: inserted.insertedIds.length,
+      insertedIds: inserted.insertedIds,
       durationMs: Date.now() - startedAt,
       httpStatus: 200,
       ...(silentDeath ? { silentDeath: true } : {}),
@@ -145,11 +154,11 @@ export async function pollSource(sourceId: number): Promise<PollOutcome> {
 
     if (silentDeath) {
       log.warn(
-        { ...outcome, kind: source.kind, consecutiveEmpty },
+        { ...logPayload(outcome, source.kind), consecutiveEmpty },
         'Source has returned an empty feed repeatedly; it may have died silently',
       );
     } else {
-      log.info({ ...outcome, kind: source.kind }, 'Poll complete');
+      log.info(logPayload(outcome, source.kind), 'Poll complete');
     }
 
     return outcome;
@@ -162,6 +171,7 @@ export async function pollSource(sourceId: number): Promise<PollOutcome> {
       status: 'failed',
       itemCount: 0,
       newCount: 0,
+      insertedIds: [],
       durationMs: Date.now() - startedAt,
       error: message,
       ...(err instanceof HttpClientError && err.status !== undefined
@@ -172,12 +182,12 @@ export async function pollSource(sourceId: number): Promise<PollOutcome> {
 
     if (failure.deactivated) {
       log.error(
-        { ...outcome, kind: source.kind, consecutiveFailures: failure.consecutiveFailures },
+        { ...logPayload(outcome, source.kind), consecutiveFailures: failure.consecutiveFailures },
         'Source deactivated after repeated failures; a permanently dead feed should stop consuming budget',
       );
     } else {
       log.warn(
-        { ...outcome, kind: source.kind, consecutiveFailures: failure.consecutiveFailures },
+        { ...logPayload(outcome, source.kind), consecutiveFailures: failure.consecutiveFailures },
         'Poll failed',
       );
     }
@@ -186,6 +196,17 @@ export async function pollSource(sourceId: number): Promise<PollOutcome> {
   } finally {
     clearTimeout(timeout);
   }
+}
+
+/**
+ * The log payload for an outcome.
+ *
+ * `insertedIds` is up to 100 ids per poll and belongs in a queue message, not in
+ * every log line -- one poll log line is the contract (02-SPEC-ingestion.md 8).
+ */
+function logPayload(outcome: PollOutcome, kind?: string): Record<string, unknown> {
+  const { insertedIds: _ids, ...rest } = outcome;
+  return kind === undefined ? rest : { ...rest, kind };
 }
 
 function describeError(err: unknown): string {

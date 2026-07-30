@@ -12,6 +12,7 @@ import { env } from '../config/env.js';
 import { logger } from '../logger.js';
 import { healthRouter } from './routes/health.js';
 import { itemsRouter } from './routes/items.js';
+import { rulesRouter } from './routes/rules.js';
 import { settingsRouter } from './routes/settings.js';
 import { sourcesRouter } from './routes/sources.js';
 import { tagsRouter } from './routes/tags.js';
@@ -59,6 +60,7 @@ export function createApp(): Express {
   app.use('/api', settingsRouter);
   app.use('/api', tagsRouter);
   app.use('/api', sourcesRouter);
+  app.use('/api', rulesRouter);
   app.use('/api', itemsRouter);
 
   app.use(notFoundHandler);

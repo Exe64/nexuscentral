@@ -81,13 +81,15 @@ async function loadWorker(): Promise<typeof WorkerModule> {
 }
 
 describe('startWorker', () => {
-  it('creates both queues, registers both handlers and schedules the tick', async () => {
+  it('creates every queue, registers a handler for each and schedules the crons', async () => {
     const worker = await loadWorker();
     await worker.startWorker();
 
-    expect(state.queues).toEqual(['poll:tick', 'poll:source']);
-    expect(state.workRegistrations).toEqual(['poll:tick', 'poll:source']);
-    expect(state.schedules).toEqual(['poll:tick']);
+    const expected = ['poll:tick', 'poll:source', 'score:items', 'rescore:all', 'score:refresh'];
+    expect(state.queues).toEqual(expected);
+    // A queue with no handler would accept jobs and never run them.
+    expect(state.workRegistrations).toEqual(expected);
+    expect(state.schedules).toEqual(['poll:tick', 'score:refresh']);
 
     await worker.stopWorker();
   });
@@ -98,7 +100,7 @@ describe('startWorker', () => {
     const second = await worker.startWorker();
 
     expect(second).toBe(first);
-    expect(state.queues).toHaveLength(2);
+    expect(state.queues).toHaveLength(5);
 
     await worker.stopWorker();
   });
@@ -110,7 +112,7 @@ describe('startWorker', () => {
     const [a, b] = await Promise.all([worker.startWorker(), worker.startWorker()]);
 
     expect(a).toBe(b);
-    expect(state.queues).toEqual(['poll:tick', 'poll:source']);
+    expect(state.queues).toHaveLength(5);
 
     await worker.stopWorker();
   });
@@ -166,7 +168,7 @@ describe('enqueuePoll during startup', () => {
     // a replay of the first failure.
     state.startShouldFail = false;
     await expect(worker.startWorker()).resolves.toBeDefined();
-    expect(state.queues).toEqual(['poll:tick', 'poll:source']);
+    expect(state.queues).toHaveLength(5);
 
     await worker.stopWorker();
   });

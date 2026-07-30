@@ -17,15 +17,62 @@ in that order; `05-BUILD-PLAN.md` defines the phase order and the acceptance cri
 
 ## Status
 
-**Phase 2 — Reddit and Nitter. Complete.**
+**Phase 3 — scoring and rules. Complete.**
 
 Working today: tags and sources CRUD with the resolve preview; RSS/Atom, Reddit and
 best-effort X (via Nitter) adapters; the `pg-boss` scheduler with per-source backoff;
-deduplication; OPML import and export; a settings page for the integrations; and a plain
+deduplication; deterministic weighted scoring with an explainable breakdown; rules with a
+live test panel; OPML import and export; a settings page for the integrations; and a plain
 reader at `/reader`.
 
-Not yet built: scoring and rules (Phase 3), theming (Phase 4), the dashboard grid (Phase 5),
-alert delivery and `custom_api` widgets (Phase 6).
+Not yet built: theming (Phase 4), the dashboard grid (Phase 5), alert delivery and
+`custom_api` widgets (Phase 6). A rule may be marked as alerting today; nothing is delivered
+until Phase 6, and the in-app alert list is where it will show first.
+
+### Scoring
+
+```
+score = (base + ruleWeights + engagement) × source.weight × recencyDecay
+```
+
+Deterministic and explainable, never machine-learned: every score has to be defensible in
+the UI. Clicking the score badge in the reader opens the breakdown — each term, and the
+rules that fired, by name.
+
+Two things worth knowing about the numbers:
+
+- **Recency has a floor of 0.15, reached at about 66 hours.** Past that, age stops
+  discriminating, which is why the hourly refresh only bothers with the last 7 days.
+- **The breakdown reports the stored score _and_ the score recomputed now.** They drift
+  between hourly refreshes because the decay term keeps falling. Showing both is more honest
+  than picking one.
+
+Three jobs, at different costs:
+
+| Job             | When                                        | Work                                                              |
+| --------------- | ------------------------------------------- | ----------------------------------------------------------------- |
+| `score:items`   | after every poll                            | scores only the items just inserted                               |
+| `rescore:all`   | on rule create/update/delete, debounced ~5s | re-evaluates every pattern over 30 days                           |
+| `score:refresh` | hourly                                      | recomputes arithmetic over 7 days from stored matches, no regexes |
+
+50,000 items rescore in about 2.3 seconds on the development machine.
+
+### Rule safety
+
+User-supplied regexes are a ReDoS surface, so there are three layers:
+
+1. **At the API boundary**: a 200-character cap, `g` and `y` rejected (they carry `lastIndex`
+   between calls, so a rule would match or not depending on what ran before it), and a
+   heuristic that rejects nested unbounded repetition — `(a+)+`, `(\w+)+` — with a message
+   saying how to rewrite it.
+2. **Compiled once per batch**, not once per item.
+3. **A 50 ms per-item budget in a worker thread.** This is the only layer that stops a
+   pattern already backtracking. The worker writes its position to shared memory before every
+   `test()`, so when the host kills the thread it can name the rule that hung, disable it with
+   the reason on the rule row, and finish the rest of the run.
+
+The heuristic is a heuristic and does not claim to catch every slow pattern. Layer 3 is what
+makes that acceptable.
 
 ### Reddit
 

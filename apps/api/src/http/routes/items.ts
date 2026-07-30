@@ -7,7 +7,10 @@
 
 import { Router } from 'express';
 import { z } from 'zod';
-import { ITEM_SORTS } from '@feedhub/shared';
+import { ITEM_SORTS, type ItemDetail } from '@feedhub/shared';
+import { ruleWeightsById } from '../../db/rules.js';
+import { getSource } from '../../db/sources.js';
+import { computeScore } from '../../scoring/engine.js';
 import {
   getItem,
   listItems,
@@ -88,14 +91,43 @@ itemsRouter.post('/items/read-all', async (req, res) => {
   res.json({ data: { updated } });
 });
 
+/**
+ * `GET /api/items/:id` answers "why is this item scored 8.4?".
+ *
+ * The breakdown is recomputed from the stored inputs rather than persisted: it is
+ * derived data, and a stored copy would go stale the moment a rule's weight
+ * changed or an hour passed (02-SPEC-ingestion.md 5.4).
+ */
 itemsRouter.get('/items/:id', async (req, res) => {
   const item = await getItem(bigintParam(req, 'id'));
   if (item === null) throw HttpError.notFound('Item');
 
-  // The full score breakdown arrives with the scoring engine in Phase 3. Until
-  // rules exist there is nothing but the base to explain, and reporting a
-  // fabricated breakdown would be worse than reporting none.
-  res.json({ data: item });
+  const weights = await ruleWeightsById();
+  const matchedRules = item.matchedRules
+    .map((id) => weights.get(id))
+    .filter((rule): rule is NonNullable<typeof rule> => rule !== undefined);
+
+  const source = await getSource(item.source.id);
+
+  const { score, breakdown } = computeScore({
+    matchedRules,
+    engagementScore: item.engagementScore,
+    sourceKind: item.source.kind,
+    sourceWeight: source?.weight ?? 1,
+    publishedAt: new Date(item.publishedAt),
+    now: new Date(),
+  });
+
+  res.json({
+    data: {
+      ...item,
+      breakdown,
+      // The stored score was computed at scoring time; the decay has moved on
+      // since. Reporting both is the honest answer to "why 8.4?" when the row
+      // says 8.4 and the arithmetic now says 7.9.
+      liveScore: score,
+    } satisfies ItemDetail & { liveScore: number },
+  });
 });
 
 itemsRouter.post('/items/:id/read', async (req, res) => {
