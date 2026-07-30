@@ -37,8 +37,33 @@ readable, which is not true of an HSL ramp. The neutrals carry a trace of the ac
 changing it changes the app rather than just recolouring the buttons.
 
 Components reference **only** semantic tokens (`--bg-surface`, `--text-secondary`,
-`--accent`). Nothing reaches past them to a raw colour. That is what will make named presets
-— Solarized, terminal, and so on — a matter of one more token block rather than a rewrite.
+`--accent`). Nothing reaches past them to a raw colour, which is what makes a named palette
+one more token block rather than a rewrite.
+
+#### Named palettes
+
+| Palette        | What it is                                                              |
+| -------------- | ----------------------------------------------------------------------- |
+| **Default**    | The accent-derived ramp above                                           |
+| **Solarized**  | Ethan Schoonover's hues, adapted (see below)                            |
+| **Terminal**   | Green phosphor; the light variant is the same green on paper            |
+| **VT220**      | DEC amber phosphor, ditto                                               |
+| **PowerShell** | The console's `#012456` navy, its off-white text and its warning yellow |
+
+Palette and mode are orthogonal: every palette defines both a light and a dark variant, so
+switching mode never lands on something that does not exist. Choosing a dark-native palette
+switches the mode to dark for you, and nothing is locked afterwards. A palette sets its own
+colours, so the accent controls do nothing while one is active — the UI says so rather than
+leaving a dead slider.
+
+**The palettes are adapted, not transcribed.** Canonical Solarized does not clear this
+project's own contrast floor: its light body text measures 4.13:1 on its own background and
+its secondary text 2.48:1, against a 4.5:1 requirement. The hues are kept exactly; the
+lightness is adjusted until it reads. The settings page states this next to the palette
+rather than quietly shipping something that is not quite Solarized.
+
+Every palette goes through the same test as the derived theme — 104 further assertions
+covering both variants of all four.
 
 `localStorage` is the render-time cache and PostgreSQL is the source of truth: an inline
 script in `index.html` applies the theme before the first paint, and the server value is

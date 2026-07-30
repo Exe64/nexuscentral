@@ -7,7 +7,7 @@
 
 import { Router } from 'express';
 import { z } from 'zod';
-import { THEME_MODES, WEBHOOK_KINDS } from '@feedhub/shared';
+import { THEME_MODES, THEME_PRESETS, WEBHOOK_KINDS } from '@feedhub/shared';
 import {
   getRawSettings,
   resolveNitterBaseUrls,
@@ -38,6 +38,7 @@ const nullableSecret = z
 const patchSchema = z
   .object({
     themeMode: z.enum(THEME_MODES).optional(),
+    themePreset: z.enum(THEME_PRESETS).optional(),
     accentHue: z.number().int().min(0).max(360).optional(),
     accentChroma: z.number().min(0).max(0.37).optional(),
     itemsRetentionDays: z.number().int().min(1).max(3650).optional(),

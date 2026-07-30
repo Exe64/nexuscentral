@@ -12,12 +12,13 @@
  *   would accept edits that do nothing.
  */
 
-import type { SettingOrigin, Settings, ThemeMode, WebhookKind } from '@feedhub/shared';
+import type { SettingOrigin, Settings, ThemeMode, ThemePreset, WebhookKind } from '@feedhub/shared';
 import { query } from './pool.js';
 import { env } from '../config/env.js';
 
 interface SettingsRow {
   theme_mode: string;
+  theme_preset: string;
   accent_hue: number;
   accent_chroma: number;
   items_retention_days: number;
@@ -30,7 +31,7 @@ interface SettingsRow {
 }
 
 const COLUMNS = `
-  theme_mode, accent_hue, accent_chroma, items_retention_days,
+  theme_mode, theme_preset, accent_hue, accent_chroma, items_retention_days,
   alert_webhook_url, alert_webhook_kind,
   reddit_client_id, reddit_client_secret, nitter_base_urls, updated_at
 `;
@@ -38,6 +39,7 @@ const COLUMNS = `
 /** Everything in the row, secrets included. Never hand this to a response. */
 export interface RawSettings {
   themeMode: ThemeMode;
+  themePreset: ThemePreset;
   accentHue: number;
   accentChroma: number;
   itemsRetentionDays: number;
@@ -52,6 +54,7 @@ export interface RawSettings {
 function toRaw(row: SettingsRow): RawSettings {
   return {
     themeMode: row.theme_mode as ThemeMode,
+    themePreset: row.theme_preset as ThemePreset,
     accentHue: row.accent_hue,
     accentChroma: row.accent_chroma,
     itemsRetentionDays: row.items_retention_days,
@@ -85,6 +88,7 @@ export async function getRawSettings(): Promise<RawSettings> {
 
 export interface SettingsPatch {
   themeMode?: ThemeMode;
+  themePreset?: ThemePreset;
   accentHue?: number;
   accentChroma?: number;
   itemsRetentionDays?: number;
@@ -105,6 +109,7 @@ export async function updateSettings(patch: SettingsPatch): Promise<RawSettings>
   };
 
   if (patch.themeMode !== undefined) set('theme_mode', patch.themeMode);
+  if (patch.themePreset !== undefined) set('theme_preset', patch.themePreset);
   if (patch.accentHue !== undefined) set('accent_hue', patch.accentHue);
   if (patch.accentChroma !== undefined) set('accent_chroma', patch.accentChroma);
   if (patch.itemsRetentionDays !== undefined) set('items_retention_days', patch.itemsRetentionDays);
@@ -195,6 +200,7 @@ export function toPublicSettings(settings: RawSettings): Settings {
 
   return {
     themeMode: settings.themeMode,
+    themePreset: settings.themePreset,
     accentHue: settings.accentHue,
     accentChroma: settings.accentChroma,
     itemsRetentionDays: settings.itemsRetentionDays,

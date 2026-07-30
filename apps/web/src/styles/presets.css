@@ -1,0 +1,237 @@
+/*
+ * Named palettes.
+ *
+ * Each block overrides the same semantic tokens the derived theme defines. No
+ * component changes, because no component references anything but those tokens --
+ * which is the whole payoff of the token layer.
+ *
+ * Two rules these follow:
+ *
+ * 1. **The contrast floor still applies.** The same test that covers 12 accent
+ *    hues covers every preset in both modes. Canonical Solarized does not clear it
+ *    -- its light body text measures 4.13:1 on its own background, and its
+ *    secondary text 2.48:1 -- so the hues are kept exactly and the lightness is
+ *    adjusted until it does. That is why it is offered as "Solarized-inspired".
+ * 2. **Mode stays orthogonal.** Every preset has a light and a dark variant, so
+ *    switching mode never lands on a palette that does not exist. The dark-native
+ *    ones (terminal, vt220, powershell) switch the mode for you when selected, but
+ *    nothing is locked.
+ *
+ * Tag colours are deliberately not overridden: a tag chip carries its own
+ * background, so its contrast is self-contained and it stays recognisable across
+ * every theme -- which is the point of colour-coding a tag.
+ */
+
+/* ------------------------------------------------------------------ *
+ * Solarized-inspired -- Ethan Schoonover's hues, this project's floor  *
+ * ------------------------------------------------------------------ */
+
+[data-preset='solarized'][data-theme='dark'] {
+  /* base03, base02 and neighbours, unchanged. */
+  --bg-base: oklch(0.267 0.049 220);
+  --bg-surface: oklch(0.309 0.052 220);
+  --bg-raised: oklch(0.35 0.05 220);
+  --bg-hover: oklch(0.39 0.048 220);
+  --border-subtle: oklch(0.42 0.04 220);
+  --border-strong: oklch(0.58 0.03 219);
+
+  /* base1 and base0, both of which already clear the floor. */
+  --text-primary: oklch(0.8 0.016 197);
+  --text-secondary: oklch(0.73 0.02 205);
+  /* base01 sits at 2.79:1 against base03; lifted until it reads. */
+  --text-muted: oklch(0.58 0.028 219);
+  --text-visited: oklch(0.62 0.03 280);
+
+  /* Solarized blue, lifted from 4.08:1 to clear the floor. */
+  --accent: oklch(0.68 0.139 245);
+  --accent-hover: oklch(0.76 0.12 245);
+  --accent-fg: oklch(0.24 0.045 220);
+  --accent-subtle: oklch(0.33 0.06 245);
+
+  --positive: oklch(0.72 0.15 119);
+  --negative: oklch(0.68 0.19 27);
+  --warning: oklch(0.75 0.13 86);
+}
+
+[data-preset='solarized'][data-theme='light'] {
+  --bg-base: oklch(0.9735 0.026 90);
+  --bg-surface: oklch(0.99 0.012 90);
+  --bg-raised: oklch(0.9306 0.026 92);
+  --bg-hover: oklch(0.9 0.026 92);
+  --border-subtle: oklch(0.86 0.024 92);
+  /* Against the darkest surface in this palette, not just the lightest. */
+  --border-strong: oklch(0.6 0.03 220);
+
+  /* base00 measures 4.13:1 canonically; darkened until it clears 4.5:1 against
+     every surface above, bg-hover included. */
+  --text-primary: oklch(0.4 0.03 222);
+  --text-secondary: oklch(0.5 0.028 219);
+  --text-muted: oklch(0.6 0.024 197);
+  --text-visited: oklch(0.5 0.09 279);
+
+  --accent: oklch(0.5 0.125 245);
+  --accent-hover: oklch(0.42 0.105 245);
+  --accent-fg: oklch(0.99 0.01 90);
+  --accent-subtle: oklch(0.93 0.035 245);
+
+  --positive: oklch(0.5 0.115 119);
+  --negative: oklch(0.52 0.19 27);
+  --warning: oklch(0.5 0.11 60);
+}
+
+/* ------------------------------------------------------- *
+ * Terminal -- green phosphor, and a paper-printout light   *
+ * ------------------------------------------------------- */
+
+[data-preset='terminal'][data-theme='dark'] {
+  --bg-base: oklch(0.15 0.02 145);
+  --bg-surface: oklch(0.18 0.022 145);
+  --bg-raised: oklch(0.22 0.026 145);
+  --bg-hover: oklch(0.26 0.03 145);
+  --border-subtle: oklch(0.3 0.04 145);
+  --border-strong: oklch(0.5 0.09 145);
+
+  /* Bright phosphor, well past the floor -- that is the look. */
+  --text-primary: oklch(0.86 0.16 145);
+  --text-secondary: oklch(0.72 0.14 145);
+  --text-muted: oklch(0.56 0.11 145);
+  --text-visited: oklch(0.66 0.1 145);
+
+  --accent: oklch(0.82 0.17 145);
+  --accent-hover: oklch(0.9 0.15 145);
+  --accent-fg: oklch(0.15 0.02 145);
+  --accent-subtle: oklch(0.26 0.06 145);
+
+  --positive: oklch(0.82 0.17 145);
+  /* Amber and red still have to be distinguishable from the green everything else
+     is made of, so they keep their own hues. */
+  --negative: oklch(0.7 0.19 27);
+  --warning: oklch(0.82 0.15 85);
+}
+
+[data-preset='terminal'][data-theme='light'] {
+  --bg-base: oklch(0.975 0.012 145);
+  --bg-surface: oklch(0.995 0.006 145);
+  --bg-raised: oklch(0.945 0.016 145);
+  --bg-hover: oklch(0.91 0.02 145);
+  --border-subtle: oklch(0.86 0.03 145);
+  --border-strong: oklch(0.6 0.09 145);
+
+  --text-primary: oklch(0.34 0.1 145);
+  --text-secondary: oklch(0.45 0.11 145);
+  --text-muted: oklch(0.57 0.11 145);
+  --text-visited: oklch(0.45 0.08 145);
+
+  --accent: oklch(0.45 0.13 145);
+  --accent-hover: oklch(0.36 0.11 145);
+  --accent-fg: oklch(0.99 0.005 145);
+  --accent-subtle: oklch(0.93 0.04 145);
+
+  --positive: oklch(0.45 0.13 145);
+  --negative: oklch(0.5 0.19 27);
+  --warning: oklch(0.5 0.105 70);
+}
+
+/* ------------------------------------------------- *
+ * VT220 -- DEC amber phosphor on a dark screen       *
+ * ------------------------------------------------- */
+
+[data-preset='vt220'][data-theme='dark'] {
+  --bg-base: oklch(0.14 0.014 75);
+  --bg-surface: oklch(0.17 0.016 75);
+  --bg-raised: oklch(0.21 0.02 75);
+  --bg-hover: oklch(0.25 0.024 75);
+  --border-subtle: oklch(0.29 0.03 75);
+  --border-strong: oklch(0.49 0.07 75);
+
+  --text-primary: oklch(0.85 0.126 75);
+  --text-secondary: oklch(0.71 0.13 75);
+  --text-muted: oklch(0.55 0.1 75);
+  --text-visited: oklch(0.65 0.09 60);
+
+  --accent: oklch(0.8 0.15 75);
+  --accent-hover: oklch(0.88 0.105 78);
+  --accent-fg: oklch(0.14 0.014 75);
+  --accent-subtle: oklch(0.25 0.05 75);
+
+  --positive: oklch(0.8 0.15 120);
+  --negative: oklch(0.7 0.19 27);
+  --warning: oklch(0.85 0.14 85);
+}
+
+[data-preset='vt220'][data-theme='light'] {
+  /* Amber on paper: the same hue, inverted. */
+  --bg-base: oklch(0.975 0.016 80);
+  --bg-surface: oklch(0.995 0.004 80);
+  --bg-raised: oklch(0.945 0.022 80);
+  --bg-hover: oklch(0.91 0.028 80);
+  --border-subtle: oklch(0.86 0.035 80);
+  --border-strong: oklch(0.6 0.08 75);
+
+  --text-primary: oklch(0.36 0.08 70);
+  --text-secondary: oklch(0.47 0.09 70);
+  --text-muted: oklch(0.58 0.09 70);
+  --text-visited: oklch(0.47 0.07 55);
+
+  --accent: oklch(0.47 0.1 65);
+  --accent-hover: oklch(0.38 0.085 65);
+  --accent-fg: oklch(0.99 0.008 80);
+  --accent-subtle: oklch(0.93 0.05 80);
+
+  --positive: oklch(0.47 0.12 130);
+  --negative: oklch(0.5 0.19 27);
+  --warning: oklch(0.47 0.1 65);
+}
+
+/* ---------------------------------------------------------- *
+ * PowerShell -- the console's navy and off-white, plus yellow *
+ * ---------------------------------------------------------- */
+
+[data-preset='powershell'][data-theme='dark'] {
+  /* #012456, converted rather than eyeballed. */
+  --bg-base: oklch(0.272 0.099 258);
+  --bg-surface: oklch(0.31 0.1 258);
+  --bg-raised: oklch(0.35 0.1 258);
+  --bg-hover: oklch(0.39 0.1 258);
+  --border-subtle: oklch(0.43 0.09 258);
+  --border-strong: oklch(0.6 0.09 258);
+
+  /* #eeedf0, the console's own foreground: 12.97:1 on that navy. */
+  --text-primary: oklch(0.948 0.004 301);
+  --text-secondary: oklch(0.79 0.012 290);
+  --text-muted: oklch(0.65 0.02 290);
+  --text-visited: oklch(0.72 0.05 290);
+
+  /* The console's warning yellow, pulled inside the sRGB gamut. */
+  --accent: oklch(0.88 0.16 100);
+  --accent-hover: oklch(0.94 0.125 100);
+  --accent-fg: oklch(0.25 0.09 258);
+  --accent-subtle: oklch(0.36 0.09 258);
+
+  --positive: oklch(0.82 0.16 145);
+  --negative: oklch(0.72 0.17 27);
+  --warning: oklch(0.88 0.16 100);
+}
+
+[data-preset='powershell'][data-theme='light'] {
+  --bg-base: oklch(0.975 0.012 258);
+  --bg-surface: oklch(0.995 0.002 258);
+  --bg-raised: oklch(0.945 0.018 258);
+  --bg-hover: oklch(0.91 0.024 258);
+  --border-subtle: oklch(0.86 0.03 258);
+  --border-strong: oklch(0.58 0.08 258);
+
+  --text-primary: oklch(0.34 0.09 258);
+  --text-secondary: oklch(0.46 0.09 258);
+  --text-muted: oklch(0.58 0.08 258);
+  --text-visited: oklch(0.46 0.09 290);
+
+  --accent: oklch(0.45 0.13 258);
+  --accent-hover: oklch(0.36 0.11 258);
+  --accent-fg: oklch(0.99 0.004 258);
+  --accent-subtle: oklch(0.93 0.032 258);
+
+  --positive: oklch(0.47 0.13 145);
+  --negative: oklch(0.5 0.19 27);
+  --warning: oklch(0.48 0.1 70);
+}

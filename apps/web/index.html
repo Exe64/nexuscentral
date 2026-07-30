@@ -20,12 +20,14 @@
             (mode === 'system' && matchMedia('(prefers-color-scheme: dark)').matches);
           var d = document.documentElement;
           d.dataset.theme = dark ? 'dark' : 'light';
+          d.dataset.preset = s.preset || 'default';
           if (s.hue != null) d.style.setProperty('--accent-h', s.hue);
           if (s.chroma != null) d.style.setProperty('--accent-c', s.chroma);
         } catch (e) {
           // A corrupt cache must not stop the page rendering; the default theme
           // in the stylesheet takes over.
           document.documentElement.dataset.theme = 'light';
+          document.documentElement.dataset.preset = 'default';
         }
       })();
     </script>

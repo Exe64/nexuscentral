@@ -31,6 +31,7 @@ export function ThemeProvider({ children }: { children: ReactNode }): ReactNode 
     if (settings.data === undefined) return;
     adoptFromServer({
       mode: settings.data.themeMode,
+      preset: settings.data.themePreset,
       hue: settings.data.accentHue,
       chroma: settings.data.accentChroma,
     });

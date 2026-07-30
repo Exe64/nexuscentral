@@ -13,9 +13,11 @@
 
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import type { ThemePreset } from '@feedhub/shared';
 import type { Oklch } from '../../src/lib/oklch.ts';
 
 const TOKENS_PATH = join(process.cwd(), 'src', 'styles', 'tokens.css');
+const PRESETS_PATH = join(process.cwd(), 'src', 'styles', 'presets.css');
 
 /** Declarations grouped by the selector they appeared under. */
 type Blocks = Map<string, Map<string, string>>;
@@ -55,6 +57,8 @@ export interface ResolveOptions {
   theme: ThemeName;
   accentHue: number;
   accentChroma: number;
+  /** `default` uses the derived ramp; anything else overrides it. */
+  preset?: ThemePreset;
 }
 
 const CALC_PATTERN = /^calc\(\s*var\((--[\w-]+)\)\s*\*\s*([\d.]+)\s*\)$/;
@@ -102,16 +106,35 @@ function oklchComponents(expression: string): [string, string, string] | null {
  * then any later block for the same selector.
  */
 export function resolveTokens(options: ResolveOptions): Map<string, Oklch> {
-  const blocks = parseBlocks(readFileSync(TOKENS_PATH, 'utf8'));
+  const preset = options.preset ?? 'default';
 
   const raw = new Map<string, string>();
-  for (const [selector, declarations] of blocks) {
+
+  // Base layer: the derived ramp and the per-theme semantic tokens.
+  for (const [selector, declarations] of parseBlocks(readFileSync(TOKENS_PATH, 'utf8'))) {
     const applies =
       selector === ':root' ||
       selector === `[data-theme='${options.theme}']` ||
       selector === `[data-theme="${options.theme}"]`;
     if (!applies) continue;
     for (const [name, value] of declarations) raw.set(name, value);
+  }
+
+  // Preset layer, applied on top -- the same order the cascade produces, since a
+  // preset selector is strictly more specific than a theme selector.
+  if (preset !== 'default') {
+    let matched = false;
+    for (const [selector, declarations] of parseBlocks(readFileSync(PRESETS_PATH, 'utf8'))) {
+      const normalised = selector.replace(/"/g, "'");
+      if (normalised !== `[data-preset='${preset}'][data-theme='${options.theme}']`) continue;
+      matched = true;
+      for (const [name, value] of declarations) raw.set(name, value);
+    }
+    // A preset with no block for one of the two modes would silently fall back to
+    // the derived theme, which is exactly the bug this guards against.
+    if (!matched) {
+      throw new Error(`Preset "${preset}" declares no block for the ${options.theme} theme`);
+    }
   }
 
   // The accent settings are what the app writes onto <html> at runtime.

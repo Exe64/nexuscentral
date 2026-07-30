@@ -1,8 +1,21 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Settings } from '../src/pages/Settings.tsx';
+import { useThemeStore } from '../src/theme/store.ts';
 import { renderPage, stubApi } from './helpers.tsx';
+
+beforeEach(() => {
+  localStorage.clear();
+  // The theme store is a module singleton: without this, a palette chosen in one
+  // test is still selected in the next.
+  useThemeStore.getState().adoptFromServer({
+    mode: 'system',
+    preset: 'default',
+    hue: 250,
+    chroma: 0.14,
+  });
+});
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -11,6 +24,7 @@ afterEach(() => {
 function settings(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
     themeMode: 'system',
+    themePreset: 'default',
     accentHue: 250,
     accentChroma: 0.14,
     itemsRetentionDays: 90,
@@ -140,6 +154,65 @@ describe('Reddit panel', () => {
 
     expect(await screen.findByText(/accepted the credentials from settings/)).toBeDefined();
     expect(screen.getByText(/596 requests left/)).toBeDefined();
+  });
+});
+
+describe('Appearance panel', () => {
+  it('offers every palette and explains what each one is', async () => {
+    stubApi({ 'GET /api/settings': { body: { data: settings() } } });
+
+    renderPage(<Settings />);
+
+    for (const name of ['Default', 'Solarized', 'Terminal', 'VT220', 'PowerShell']) {
+      expect(await screen.findByRole('radio', { name })).toBeDefined();
+    }
+    // The adaptation is stated rather than hidden behind the name.
+    await userEvent.click(screen.getByRole('radio', { name: 'Solarized' }));
+    expect(await screen.findByText(/4\.13:1/)).toBeDefined();
+  });
+
+  it('saves the palette and the mode it forced', async () => {
+    stubApi({
+      'GET /api/settings': { body: { data: settings() } },
+      'PATCH /api/settings': { body: { data: settings({ themePreset: 'vt220' }) } },
+    });
+
+    renderPage(<Settings />);
+    await userEvent.click(await screen.findByRole('radio', { name: 'VT220' }));
+
+    await waitFor(() => {
+      const patch = vi
+        .mocked(fetch)
+        .mock.calls.find(([, init]) => (init as RequestInit | undefined)?.method === 'PATCH');
+      // Amber phosphor is a dark palette; persisting only the preset would leave
+      // the stored mode disagreeing with what is on screen.
+      expect(JSON.parse(String((patch?.[1] as RequestInit).body))).toEqual({
+        themePreset: 'vt220',
+        themeMode: 'dark',
+      });
+    });
+  });
+
+  it('says the accent does nothing under a preset rather than leaving a dead control', async () => {
+    stubApi({
+      'GET /api/settings': { body: { data: settings({ themePreset: 'terminal' }) } },
+      'PATCH /api/settings': { body: { data: settings({ themePreset: 'terminal' }) } },
+    });
+
+    renderPage(<Settings />);
+    await userEvent.click(await screen.findByRole('radio', { name: 'Terminal' }));
+
+    expect(await screen.findByText(/sets its own colours/)).toBeDefined();
+  });
+
+  it('keeps the accent controls live on the default palette', async () => {
+    stubApi({ 'GET /api/settings': { body: { data: settings() } } });
+
+    renderPage(<Settings />);
+    await screen.findByRole('radio', { name: 'Default' });
+
+    expect(screen.queryByText(/sets its own colours/)).toBeNull();
+    expect(screen.getByLabelText(/Accent hue/)).toBeDefined();
   });
 });
 

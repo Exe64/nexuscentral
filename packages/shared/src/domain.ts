@@ -31,6 +31,23 @@ export type WidgetType = (typeof WIDGET_TYPES)[number];
 export const THEME_MODES = ['light', 'dark', 'system'] as const;
 export type ThemeMode = (typeof THEME_MODES)[number];
 
+/**
+ * Named palettes, orthogonal to the mode.
+ *
+ * `default` is the accent-derived OKLCH ramp; the rest are fixed palettes that
+ * ignore the accent hue and chroma. Every preset defines both a light and a dark
+ * variant, so switching mode never lands on a palette that does not exist.
+ *
+ * The historical palettes are adapted, not transcribed: canonical Solarized puts
+ * its light body text at 4.13:1 on its own background, below this project's floor.
+ * Hues are kept, lightness is adjusted.
+ */
+export const THEME_PRESETS = ['default', 'solarized', 'terminal', 'vt220', 'powershell'] as const;
+export type ThemePreset = (typeof THEME_PRESETS)[number];
+
+/** Presets whose native look is dark; selecting one switches the mode to match. */
+export const DARK_NATIVE_PRESETS: readonly ThemePreset[] = ['terminal', 'vt220', 'powershell'];
+
 export const WEBHOOK_KINDS = ['none', 'ntfy', 'gotify', 'discord', 'generic'] as const;
 export type WebhookKind = (typeof WEBHOOK_KINDS)[number];
 
@@ -226,6 +243,7 @@ export interface RedditCredentialStatus {
  */
 export interface Settings {
   themeMode: ThemeMode;
+  themePreset: ThemePreset;
   accentHue: number;
   accentChroma: number;
   itemsRetentionDays: number;

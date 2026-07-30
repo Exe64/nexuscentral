@@ -206,5 +206,17 @@
   "health.degraded": "Some sources need attention.",
   "reader.item.points": "{count} points",
   "reader.item.starred": "Starred",
-  "reader.filter.clearTag": "Clear"
+  "reader.filter.clearTag": "Clear",
+  "theme.preset.label": "Palette",
+  "theme.preset.default": "Default",
+  "theme.preset.solarized": "Solarized",
+  "theme.preset.terminal": "Terminal",
+  "theme.preset.vt220": "VT220",
+  "theme.preset.powershell": "PowerShell",
+  "theme.preset.default.note": "Colours derived from the accent below.",
+  "theme.preset.solarized.note": "Ethan Schoonover's hues. Adapted: the original puts its light body text at 4.13:1, below this app’s 4.5:1 floor, so the lightness is adjusted.",
+  "theme.preset.terminal.note": "Green phosphor. The light variant is the same green on paper.",
+  "theme.preset.vt220.note": "DEC amber phosphor. The light variant is amber on paper.",
+  "theme.preset.powershell.note": "The console navy #012456 with its off-white text and warning yellow.",
+  "theme.accent.ignoredByPreset": "{preset} sets its own colours, so the accent has no effect."
 }

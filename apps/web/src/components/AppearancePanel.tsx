@@ -11,7 +11,7 @@
  */
 
 import { useState, type ReactNode } from 'react';
-import { THEME_MODES, type ThemeMode } from '@feedhub/shared';
+import { THEME_MODES, THEME_PRESETS, type ThemeMode, type ThemePreset } from '@feedhub/shared';
 import { useUpdateSettings } from '../api/queries.ts';
 import { useT } from '../i18n.tsx';
 import { oklchToHex } from '../lib/oklch.ts';
@@ -34,6 +34,8 @@ export function AppearancePanel(): ReactNode {
   const update = useUpdateSettings();
 
   const mode = useThemeStore((state) => state.mode);
+  const preset = useThemeStore((state) => state.preset);
+  const setPreset = useThemeStore((state) => state.setPreset);
   const hue = useThemeStore((state) => state.hue);
   const chroma = useThemeStore((state) => state.chroma);
   const setMode = useThemeStore((state) => state.setMode);
@@ -43,8 +45,12 @@ export function AppearancePanel(): ReactNode {
 
   const [dragging, setDragging] = useState(false);
 
+  /** A named preset defines its own colours, so the accent controls do nothing. */
+  const usesAccent = preset === 'default';
+
   const commit = (next: {
     themeMode?: ThemeMode;
+    themePreset?: ThemePreset;
     accentHue?: number;
     accentChroma?: number;
   }): void => {
@@ -86,9 +92,48 @@ export function AppearancePanel(): ReactNode {
       </div>
 
       <div>
+        <span className="text-secondary mb-1.5 block text-sm">{t('theme.preset.label')}</span>
+        <div
+          role="radiogroup"
+          aria-label={t('theme.preset.label')}
+          className="flex flex-wrap gap-1.5"
+        >
+          {THEME_PRESETS.map((option) => (
+            <button
+              key={option}
+              type="button"
+              role="radio"
+              aria-checked={preset === option}
+              onClick={() => {
+                // Selecting a dark-native preset switches the mode with it; the
+                // store reports what it settled on so both get persisted.
+                const applied = setPreset(option);
+                commit({ themePreset: option, themeMode: applied.mode });
+              }}
+              className={[
+                'border-subtle rounded border px-3 py-1.5 text-sm',
+                preset === option
+                  ? 'bg-accent text-accent-fg border-strong'
+                  : 'text-secondary hover:bg-hovered bg-surface',
+              ].join(' ')}
+            >
+              {t(`theme.preset.${option}`)}
+            </button>
+          ))}
+        </div>
+        <p className="text-muted mt-1.5 text-xs">{t(`theme.preset.${preset}.note`)}</p>
+      </div>
+
+      <div aria-disabled={usesAccent ? undefined : true} className={usesAccent ? '' : 'opacity-50'}>
         <label htmlFor="accent-hue" className="text-secondary mb-1.5 block text-sm">
           {t('theme.accent.label', { hue })}
         </label>
+        {!usesAccent && (
+          // Saying so beats leaving a control that visibly does nothing.
+          <p role="status" className="text-muted mb-1.5 text-xs">
+            {t('theme.accent.ignoredByPreset', { preset: t(`theme.preset.${preset}`) })}
+          </p>
+        )}
         <input
           id="accent-hue"
           type="range"

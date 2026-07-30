@@ -10,7 +10,12 @@
  */
 
 import { create } from 'zustand';
-import type { ThemeMode } from '@feedhub/shared';
+import {
+  DARK_NATIVE_PRESETS,
+  THEME_PRESETS,
+  type ThemeMode,
+  type ThemePreset,
+} from '@feedhub/shared';
 
 /** The same key the inline no-flash script in index.html reads. */
 export const STORAGE_KEY = 'feedhub.theme';
@@ -19,10 +24,17 @@ export const STORAGE_KEY = 'feedhub.theme';
 export const CHROMA_MUTED = 0.06;
 export const CHROMA_VIVID = 0.14;
 
-export const DEFAULT_THEME = { mode: 'system' as ThemeMode, hue: 250, chroma: CHROMA_VIVID };
+export const DEFAULT_THEME = {
+  mode: 'system' as ThemeMode,
+  preset: 'default' as ThemePreset,
+  hue: 250,
+  chroma: CHROMA_VIVID,
+};
 
 export interface StoredTheme {
   mode: ThemeMode;
+  /** A named palette, or `default` for the accent-derived ramp. */
+  preset: ThemePreset;
   hue: number;
   chroma: number;
 }
@@ -31,6 +43,12 @@ interface ThemeState extends StoredTheme {
   /** What `data-theme` currently is: `system` resolved against the OS preference. */
   resolved: 'light' | 'dark';
   setMode: (mode: ThemeMode) => void;
+  /**
+   * Returns the mode that ended up applied. Selecting a dark-native preset
+   * switches to dark, because "terminal" on a white page is not the thing
+   * anyone asked for. Nothing is locked: the mode control still works.
+   */
+  setPreset: (preset: ThemePreset) => { mode: ThemeMode };
   setHue: (hue: number) => void;
   setChroma: (chroma: number) => void;
   /** Applied without persisting, for dragging the hue slider. */
@@ -62,6 +80,7 @@ function readStored(): StoredTheme {
         stored.mode === 'light' || stored.mode === 'dark' || stored.mode === 'system'
           ? stored.mode
           : DEFAULT_THEME.mode,
+      preset: isPreset(stored.preset) ? stored.preset : DEFAULT_THEME.preset,
       hue: typeof stored.hue === 'number' ? clampHue(stored.hue) : DEFAULT_THEME.hue,
       chroma: typeof stored.chroma === 'number' ? clampChroma(stored.chroma) : DEFAULT_THEME.chroma,
     };
@@ -80,6 +99,10 @@ function persist(theme: StoredTheme): void {
   }
 }
 
+function isPreset(value: unknown): value is ThemePreset {
+  return typeof value === 'string' && (THEME_PRESETS as readonly string[]).includes(value);
+}
+
 export const clampHue = (hue: number): number => Math.min(360, Math.max(0, Math.round(hue)));
 export const clampChroma = (chroma: number): number => Math.min(0.37, Math.max(0, chroma));
 
@@ -95,6 +118,7 @@ export function applyTheme(theme: StoredTheme): 'light' | 'dark' {
 
   const root = document.documentElement;
   root.dataset['theme'] = resolved;
+  root.dataset['preset'] = theme.preset;
   root.style.setProperty('--accent-h', String(theme.hue));
   root.style.setProperty('--accent-c', String(theme.chroma));
   return resolved;
@@ -105,6 +129,15 @@ const initial = readStored();
 export const useThemeStore = create<ThemeState>((set, get) => ({
   ...initial,
   resolved: applyTheme(initial),
+
+  setPreset: (preset) => {
+    const current = pick(get());
+    const mode = DARK_NATIVE_PRESETS.includes(preset) ? ('dark' as ThemeMode) : current.mode;
+    const next = { ...current, preset, mode };
+    persist(next);
+    set({ ...next, resolved: applyTheme(next) });
+    return { mode };
+  },
 
   setMode: (mode) => {
     const next = { ...pick(get()), mode };
@@ -134,6 +167,7 @@ export const useThemeStore = create<ThemeState>((set, get) => ({
   adoptFromServer: (theme) => {
     const next = {
       mode: theme.mode,
+      preset: theme.preset,
       hue: clampHue(theme.hue),
       chroma: clampChroma(theme.chroma),
     };
@@ -149,5 +183,5 @@ export const useThemeStore = create<ThemeState>((set, get) => ({
 }));
 
 function pick(state: ThemeState): StoredTheme {
-  return { mode: state.mode, hue: state.hue, chroma: state.chroma };
+  return { mode: state.mode, preset: state.preset, hue: state.hue, chroma: state.chroma };
 }
