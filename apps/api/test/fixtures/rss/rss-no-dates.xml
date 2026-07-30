@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  A feed with no usable dates anywhere. The adapter must fall through to now()
+  and log at WARN: an undated feed means dedup carries the whole load.
+  The third item has a date that is present but unparseable.
+-->
+<rss version="2.0">
+  <channel>
+    <title>Homelab Notes</title>
+    <link>https://homelab.example.net</link>
+    <description>Occasional notes, no timestamps, sorry.</description>
+    <item>
+      <title>Rack rebuild, part one</title>
+      <link>https://homelab.example.net/rack-rebuild-1</link>
+      <description>Cable management is a lie you tell yourself.</description>
+    </item>
+    <item>
+      <title>Rack rebuild, part two</title>
+      <link>https://homelab.example.net/rack-rebuild-2</link>
+      <description>It got worse.</description>
+    </item>
+    <item>
+      <title>Switching to 25GbE</title>
+      <link>https://homelab.example.net/25gbe</link>
+      <pubDate>not a date at all</pubDate>
+      <description>Optics are cheaper than you think.</description>
+    </item>
+  </channel>
+</rss>

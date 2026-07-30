@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  The same three articles as rss-tracking-params-changed.xml, but with different
+  tracking parameters on every link and no guid to fall back on. Canonicalisation
+  must make both files hash identically, otherwise a newsletter-style feed
+  reinserts its whole history on every poll.
+-->
+<rss version="2.0">
+  <channel>
+    <title>Cloud Native Digest</title>
+    <link>https://digest.example.io</link>
+    <description>Weekly roundup.</description>
+    <item>
+      <title>eBPF in production: three war stories</title>
+      <link>https://www.digest.example.io/posts/ebpf-war-stories/?utm_source=newsletter&amp;utm_campaign=w30&amp;id=441</link>
+      <pubDate>Mon, 27 Jul 2026 07:00:00 GMT</pubDate>
+      <description>What actually breaks.</description>
+    </item>
+    <item>
+      <title>Kubernetes 1.35 deprecations</title>
+      <link>https://www.digest.example.io/posts/k8s-1-35-deprecations?ref=digest&amp;utm_medium=email&amp;page=1&amp;fbclid=abc123</link>
+      <pubDate>Mon, 20 Jul 2026 07:00:00 GMT</pubDate>
+      <description>Read this before you upgrade.</description>
+    </item>
+    <item>
+      <title>Cilium versus Calico, again</title>
+      <link>https://www.digest.example.io/posts/cilium-vs-calico#results</link>
+      <pubDate>Mon, 13 Jul 2026 07:00:00 GMT</pubDate>
+      <description>Benchmarks with the methodology attached.</description>
+    </item>
+  </channel>
+</rss>

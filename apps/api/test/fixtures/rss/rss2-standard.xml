@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:content="http://purl.org/rss/1.0/modules/content/">
+  <channel>
+    <title>Nutanix Blog</title>
+    <link>https://www.nutanix.com/blog</link>
+    <description>News and technical deep dives from Nutanix.</description>
+    <language>en-us</language>
+    <image>
+      <url>https://www.nutanix.com/content/dam/nutanix/logo.png</url>
+      <title>Nutanix Blog</title>
+      <link>https://www.nutanix.com/blog</link>
+    </image>
+    <item>
+      <title>Announcing AOS 7.2</title>
+      <link>https://www.nutanix.com/blog/announcing-aos-7-2</link>
+      <guid isPermaLink="false">urn:nutanix:blog:8841</guid>
+      <pubDate>Tue, 28 Jul 2026 09:00:00 GMT</pubDate>
+      <dc:creator>Priya Raman</dc:creator>
+      <description>&lt;p&gt;AOS 7.2 ships &lt;strong&gt;erasure coding&lt;/strong&gt; improvements and a rebuilt Prism UI.&lt;/p&gt;</description>
+    </item>
+    <item>
+      <title>CVE-2026-31337 in Prism Central: what you need to do</title>
+      <link>https://www.nutanix.com/blog/cve-2026-31337-prism-central</link>
+      <guid isPermaLink="false">urn:nutanix:blog:8839</guid>
+      <pubDate>Mon, 27 Jul 2026 14:30:00 GMT</pubDate>
+      <dc:creator>Security Response Team</dc:creator>
+      <content:encoded><![CDATA[<p>A privilege escalation issue affects Prism Central 2026.1 through 2026.3. <a href="https://portal.nutanix.com">Patch now</a>.</p>]]></content:encoded>
+      <description>Short summary that content:encoded should win over.</description>
+    </item>
+    <item>
+      <title>Sizing NVMe tiers for mixed workloads</title>
+      <link>https://www.nutanix.com/blog/sizing-nvme-tiers</link>
+      <guid isPermaLink="false">urn:nutanix:blog:8830</guid>
+      <pubDate>Fri, 24 Jul 2026 08:15:00 GMT</pubDate>
+      <description>How to pick a cache ratio without guessing.</description>
+    </item>
+    <item>
+      <title>Field notes from a 400-node deployment</title>
+      <link>https://www.nutanix.com/blog/field-notes-400-node</link>
+      <guid isPermaLink="false">urn:nutanix:blog:8812</guid>
+      <pubDate>Wed, 22 Jul 2026 11:00:00 GMT</pubDate>
+      <description>What broke, and what we changed afterwards.</description>
+    </item>
+  </channel>
+</rss>

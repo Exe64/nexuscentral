@@ -29,11 +29,25 @@ export interface Logger {
   error(obj: unknown, msg?: string): void;
 }
 
+/**
+ * Conditional-request state, carried separately from `Source`.
+ *
+ * `sources.http_etag` and `sources.http_modified` are HTTP plumbing, not domain
+ * data: they are never returned by the API and never rendered. Passing them here
+ * keeps them off the transport type without hiding them from the one caller that
+ * needs them.
+ */
+export interface ConditionalState {
+  etag?: string | undefined;
+  lastModified?: string | undefined;
+}
+
 export interface FetchContext {
   source: Source;
   /** 30s timeout, enforced by the runner. */
   signal: AbortSignal;
   logger: Logger;
+  conditional?: ConditionalState;
 }
 
 export interface FetchResult {

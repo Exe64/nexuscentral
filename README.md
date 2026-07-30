@@ -54,14 +54,14 @@ on the VPS, and publishing the database there would undo a deployment constraint
 
 Useful commands:
 
-| Command | Effect |
-|---|---|
-| `pnpm build` | Build `shared`, then `api` and `web` |
-| `pnpm typecheck` | `tsc` across every package, including tests |
-| `pnpm lint` / `pnpm format` | ESLint / Prettier |
-| `pnpm test` | `vitest` across every package |
-| `pnpm --filter @feedhub/api migrate up` | Apply migrations |
-| `pnpm --filter @feedhub/api migrate down` | Roll back the last migration |
+| Command                                   | Effect                                      |
+| ----------------------------------------- | ------------------------------------------- |
+| `pnpm build`                              | Build `shared`, then `api` and `web`        |
+| `pnpm typecheck`                          | `tsc` across every package, including tests |
+| `pnpm lint` / `pnpm format`               | ESLint / Prettier                           |
+| `pnpm test`                               | `vitest` across every package               |
+| `pnpm --filter @feedhub/api migrate up`   | Apply migrations                            |
+| `pnpm --filter @feedhub/api migrate down` | Roll back the last migration                |
 
 `migrate` reads `DATABASE_URL`. It resolves the migrations directory from `MIGRATIONS_DIR`,
 defaulting to `../../migrations` — the Docker image sets it to `/app/migrations`.
@@ -79,7 +79,7 @@ docker compose exec api pnpm migrate up
 Topology:
 
 - **`postgres`** — not published, on the Docker network only.
-- **`api`** — not published to the host either. It binds `0.0.0.0` *inside its container* so
+- **`api`** — not published to the host either. It binds `0.0.0.0` _inside its container_ so
   `web` can reach it; there is no `ports:` mapping. Locally, outside Docker, `BIND_ADDR`
   defaults to `127.0.0.1`.
 - **`web`** — Nginx serving the built SPA and proxying `/api` to `api:3000`. Published on

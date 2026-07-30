@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Second poll of the same feed: identical articles, rotated tracking parameters. -->
+<rss version="2.0">
+  <channel>
+    <title>Cloud Native Digest</title>
+    <link>https://digest.example.io</link>
+    <description>Weekly roundup.</description>
+    <item>
+      <title>eBPF in production: three war stories</title>
+      <link>https://digest.example.io/posts/ebpf-war-stories?id=441&amp;utm_source=twitter&amp;s=09</link>
+      <pubDate>Mon, 27 Jul 2026 07:00:00 GMT</pubDate>
+      <description>What actually breaks.</description>
+    </item>
+    <item>
+      <title>Kubernetes 1.35 deprecations</title>
+      <link>https://digest.example.io/posts/k8s-1-35-deprecations/?page=1&amp;gclid=xyz789&amp;ref_src=twsrc</link>
+      <pubDate>Mon, 20 Jul 2026 07:00:00 GMT</pubDate>
+      <description>Read this before you upgrade.</description>
+    </item>
+    <item>
+      <title>Cilium versus Calico, again</title>
+      <link>https://digest.example.io/posts/cilium-vs-calico#methodology</link>
+      <pubDate>Mon, 13 Jul 2026 07:00:00 GMT</pubDate>
+      <description>Benchmarks with the methodology attached.</description>
+    </item>
+  </channel>
+</rss>

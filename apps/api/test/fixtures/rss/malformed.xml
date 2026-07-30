@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Truncated Feed</title>
+    <link>https://broken.example.org</link>
+    <item>
+      <title>This document is cut off mid-element
+      <link>https://broken.example.org/one</link>
+      <description>The closing tags never arrive &amp; the entity is dangling &amp
