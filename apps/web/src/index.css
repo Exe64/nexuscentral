@@ -1,7 +1,150 @@
 @import 'tailwindcss';
+@import './styles/tokens.css';
 
 /*
- * Theme tokens -- the OKLCH accent ramp and the semantic tokens components
- * reference -- land in Phase 4 (04-SPEC-frontend.md 5). Until then the shell is
- * deliberately plain: Phase 1 ships an unstyled reader.
+ * Map the semantic tokens onto Tailwind's colour scale, so components write
+ * `bg-surface` and `text-secondary` rather than `bg-[var(--bg-surface)]`.
+ *
+ * This is the only place raw token names appear outside tokens.css. No component
+ * may reach past these (04-SPEC-frontend.md 5.3).
  */
+@theme inline {
+  --color-base: var(--bg-base);
+  --color-surface: var(--bg-surface);
+  --color-raised: var(--bg-raised);
+  --color-hovered: var(--bg-hover);
+
+  --color-subtle: var(--border-subtle);
+  --color-strong: var(--border-strong);
+
+  --color-primary: var(--text-primary);
+  --color-secondary: var(--text-secondary);
+  --color-muted: var(--text-muted);
+  --color-visited: var(--text-visited);
+
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-fg: var(--accent-fg);
+  --color-accent-subtle: var(--accent-subtle);
+
+  --color-positive: var(--positive);
+  --color-negative: var(--negative);
+  --color-warning: var(--warning);
+}
+
+@layer base {
+  html {
+    /*
+     * Never transition background-color on a theme switch: a 300ms crossfade
+     * across the whole page reads as sluggish (04-SPEC-frontend.md 5.5).
+     */
+    background-color: var(--bg-base);
+    color: var(--text-primary);
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    margin: 0;
+    font-family:
+      ui-sans-serif,
+      system-ui,
+      -apple-system,
+      'Segoe UI',
+      Roboto,
+      Helvetica,
+      Arial,
+      sans-serif;
+    line-height: 1.5;
+  }
+
+  /* Visible keyboard focus everywhere. Not negotiable, and not only on buttons. */
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+
+  /* The mouse should not draw rings, but the keyboard must. */
+  :focus:not(:focus-visible) {
+    outline: none;
+  }
+
+  a {
+    color: var(--accent);
+    text-decoration: none;
+  }
+  a:hover {
+    color: var(--accent-hover);
+    text-decoration: underline;
+  }
+  a:visited {
+    color: var(--text-visited);
+  }
+
+  code,
+  kbd,
+  pre {
+    font-family: ui-monospace, 'SF Mono', 'Cascadia Code', Menlo, Consolas, monospace;
+    font-size: 0.9em;
+  }
+
+  mark {
+    background-color: var(--accent-subtle);
+    color: var(--text-primary);
+    padding: 0 0.1em;
+    border-radius: 2px;
+  }
+
+  /* Inputs inherit the theme rather than the platform's default white. */
+  input,
+  select,
+  textarea,
+  button {
+    font: inherit;
+    color: inherit;
+  }
+
+  input,
+  select,
+  textarea {
+    background-color: var(--bg-surface);
+    border: 1px solid var(--border-subtle);
+    border-radius: 4px;
+    padding: 0.35rem 0.5rem;
+  }
+
+  ::placeholder {
+    color: var(--text-muted);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /*
+   * Respect the preference wholesale rather than auditing each animation. Grid
+   * drag feedback in Phase 5 is the main thing this turns off.
+   */
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Skip link: visible only once focused. */
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 100;
+  padding: 0.5rem 0.75rem;
+  background-color: var(--bg-surface);
+  color: var(--text-primary);
+  border: 1px solid var(--border-strong);
+  border-radius: 0 0 4px 0;
+}
+.skip-link:focus {
+  left: 0;
+}

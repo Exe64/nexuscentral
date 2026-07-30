@@ -3,12 +3,32 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="color-scheme" content="light dark" />
     <title>feedhub</title>
     <!--
-      The no-flash theme guard (04-SPEC-frontend.md 5.1) is installed here in
-      Phase 4, before any stylesheet, once the theme tokens exist.
+      No-flash guard (04-SPEC-frontend.md 5.1). Inline and before any stylesheet,
+      on purpose: a module import would resolve after the first paint, and a dark
+      user would see a white page for a frame. localStorage is the render-time
+      cache; PostgreSQL is the source of truth and reconciles on boot.
     -->
+    <script>
+      (function () {
+        try {
+          var s = JSON.parse(localStorage.getItem('feedhub.theme') || '{}');
+          var mode = s.mode || 'system';
+          var dark =
+            mode === 'dark' ||
+            (mode === 'system' && matchMedia('(prefers-color-scheme: dark)').matches);
+          var d = document.documentElement;
+          d.dataset.theme = dark ? 'dark' : 'light';
+          if (s.hue != null) d.style.setProperty('--accent-h', s.hue);
+          if (s.chroma != null) d.style.setProperty('--accent-c', s.chroma);
+        } catch (e) {
+          // A corrupt cache must not stop the page rendering; the default theme
+          // in the stylesheet takes over.
+          document.documentElement.dataset.theme = 'light';
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

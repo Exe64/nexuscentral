@@ -31,6 +31,15 @@ const contents = new Map(files.map((path) => [path, readFileSync(path, 'utf8')])
 const LITERAL_CALL = /\bt\(\s*['"]([^'"]+)['"]/g;
 /** `t(`reader.sort.${option}`)` -- a prefix whose completions must all exist. */
 const TEMPLATE_CALL = /\bt\(\s*`([^`$]*)\$\{/g;
+/**
+ * Any quoted string, so a key referenced indirectly still counts as used.
+ *
+ * Navigation entries and the shortcut list hold their keys in arrays and pass them
+ * to `t()` later; matching only on the call site would report every one of them as
+ * dead. Looser, but it still catches a key nothing mentions at all, which is the
+ * rot this guards against.
+ */
+const ANY_STRING = /['"`]([a-z][\w.]*\.[\w.]+)['"`]/g;
 
 const defined = new Set(Object.keys(en as Record<string, string>));
 
@@ -38,12 +47,22 @@ describe('translation keys', () => {
   const used = new Set<string>();
   const prefixes = new Set<string>();
 
+  /** Keys named at a `t()` call site: these must exist. */
+  const calledDirectly = new Set<string>();
+
   for (const [, source] of contents) {
     for (const match of source.matchAll(LITERAL_CALL)) {
-      if (match[1] !== undefined) used.add(match[1]);
+      if (match[1] !== undefined) {
+        used.add(match[1]);
+        calledDirectly.add(match[1]);
+      }
     }
     for (const match of source.matchAll(TEMPLATE_CALL)) {
       if (match[1] !== undefined && match[1] !== '') prefixes.add(match[1]);
+    }
+    // Indirect references, for the unused-key check only.
+    for (const match of source.matchAll(ANY_STRING)) {
+      if (match[1] !== undefined && defined.has(match[1])) used.add(match[1]);
     }
   }
 
@@ -53,7 +72,7 @@ describe('translation keys', () => {
   });
 
   it('every literal key used by a component exists in en.json', () => {
-    const missing = [...used].filter((key) => !defined.has(key));
+    const missing = [...calledDirectly].filter((key) => !defined.has(key));
     expect(missing).toEqual([]);
   });
 

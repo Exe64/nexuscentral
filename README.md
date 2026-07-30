@@ -17,17 +17,48 @@ in that order; `05-BUILD-PLAN.md` defines the phase order and the acceptance cri
 
 ## Status
 
-**Phase 3 — scoring and rules. Complete.**
+**Phase 4 — theming and shell. Complete.**
 
-Working today: tags and sources CRUD with the resolve preview; RSS/Atom, Reddit and
-best-effort X (via Nitter) adapters; the `pg-boss` scheduler with per-source backoff;
-deduplication; deterministic weighted scoring with an explainable breakdown; rules with a
-live test panel; OPML import and export; a settings page for the integrations; and a plain
-reader at `/reader`.
+Working today: the app shell with a sidebar, tag list and keyboard shortcuts; light and dark
+themes with a user-chosen accent; tags and sources CRUD with the resolve preview; RSS/Atom,
+Reddit and best-effort X (via Nitter) adapters; the `pg-boss` scheduler with per-source
+backoff; deduplication; deterministic weighted scoring with an explainable breakdown; rules
+with a live test panel; and OPML import and export.
 
-Not yet built: theming (Phase 4), the dashboard grid (Phase 5), alert delivery and
-`custom_api` widgets (Phase 6). A rule may be marked as alerting today; nothing is delivered
-until Phase 6, and the in-app alert list is where it will show first.
+Not yet built: the dashboard grid (Phase 5), alert delivery and `custom_api` widgets
+(Phase 6). A rule may be marked as alerting today; nothing is delivered until Phase 6.
+
+### Theming
+
+Light, dark and system, plus an accent chosen as a **hue** (0–360) and a **chroma**
+(Muted / Vivid). The whole ramp is derived from those two numbers in OKLCH, which keeps
+perceptual lightness constant across hues — a yellow accent and a blue accent end up equally
+readable, which is not true of an HSL ramp. The neutrals carry a trace of the accent hue, so
+changing it changes the app rather than just recolouring the buttons.
+
+Components reference **only** semantic tokens (`--bg-surface`, `--text-secondary`,
+`--accent`). Nothing reaches past them to a raw colour. That is what will make named presets
+— Solarized, terminal, and so on — a matter of one more token block rather than a rewrite.
+
+`localStorage` is the render-time cache and PostgreSQL is the source of truth: an inline
+script in `index.html` applies the theme before the first paint, and the server value is
+adopted on boot.
+
+**The contrast floor is a test, not an aspiration.** 442 assertions cover 12 hues × 2 chromas
+× both themes: body text at 4.5:1, borders and large text at 3:1, every tag pair, every
+status colour. The test parses the shipped `tokens.css` and evaluates the same `oklch()` and
+`calc()` expressions, so it measures what users get rather than a copy of it.
+
+Where this repository's token values differ from the ones written in the spec, and why, is
+documented at the top of [tokens.css](apps/web/src/styles/tokens.css). In short: the spec
+states both literal values and a non-negotiable contrast floor, and measured across 12 hues
+the literal values do not meet the floor. The floor won.
+
+### Keyboard
+
+`j` / `k` move, `o` opens, `m` toggles read, `s` stars, `r` refreshes, `/` focuses search,
+`t` cycles the theme, `?` lists them all. Shortcuts never fire while you are typing, and
+never swallow a browser chord.
 
 ### Scoring
 

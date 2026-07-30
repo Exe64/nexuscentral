@@ -25,6 +25,7 @@ import type {
   Tag,
   TagColor,
   TagWithCounts,
+  ThemeMode,
 } from '@feedhub/shared';
 import { apiFetch } from './client.ts';
 
@@ -439,6 +440,9 @@ export function useSettings(): UseQueryResult<Settings> {
 }
 
 export interface SettingsPatchBody {
+  themeMode?: ThemeMode;
+  accentHue?: number;
+  accentChroma?: number;
   redditClientId?: string | null;
   redditClientSecret?: string | null;
   nitterBaseUrls?: string[];

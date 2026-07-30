@@ -1,29 +1,21 @@
 {
   "app.name": "feedhub",
-
   "nav.reader": "Reader",
   "nav.sources": "Sources",
   "nav.tags": "Tags",
   "nav.rules": "Rules",
   "nav.settings": "Settings",
-
   "common.loading": "Loading…",
   "common.retry": "Try again",
   "common.cancel": "Cancel",
   "common.save": "Save",
   "common.delete": "Delete",
-
-  "health.checking": "Checking the API…",
+  "common.close": "Close",
   "health.ok": "API reachable — version {version}",
-  "health.error": "The API is up but its database is unreachable.",
   "health.unreachable": "Cannot reach the API. Check that it is running.",
-  "health.retry": "Try again",
-
   "reader.title": "Reader",
-  "reader.search.placeholder": "Search titles and summaries",
   "reader.filter.unreadOnly": "Unread only",
   "reader.filter.starredOnly": "Starred only",
-  "reader.filter.allTags": "All tags",
   "reader.sort.label": "Sort",
   "reader.sort.published": "Newest",
   "reader.sort.score": "Score",
@@ -39,7 +31,6 @@
   "reader.emptyAllRead": "All caught up.",
   "reader.emptyNoSources": "No items yet. Add a source and the first poll will fill this in.",
   "reader.error": "Could not load items.",
-
   "sources.title": "Sources",
   "sources.add.input.label": "Feed URL, blog address, subreddit or X handle",
   "sources.add.input.placeholder": "https://www.nutanix.com/blog",
@@ -73,7 +64,6 @@
   "sources.editTags": "Edit tags",
   "sources.filter.q.placeholder": "Filter by title or URL",
   "sources.filter.allKinds": "All kinds",
-
   "opml.title": "OPML",
   "opml.import": "Import OPML",
   "opml.importing": "Importing…",
@@ -81,7 +71,6 @@
   "opml.imported": "Added {created} sources, {alreadyTracked} were already tracked.",
   "opml.importFailedSome": "{count} entries could not be imported.",
   "opml.importCategoriesAsTags": "Create tags from folders",
-
   "tags.title": "Tags",
   "tags.add.name.label": "Name",
   "tags.add.name.placeholder": "Storage",
@@ -98,7 +87,6 @@
   "tags.rename": "Rename",
   "tags.delete.confirm": "Delete {name}? It is removed from {sourceCount} sources.",
   "tags.deleted": "Tag deleted. {widgets} widgets referenced it.",
-
   "rules.title": "Rules",
   "rules.intro": "Rules boost or bury items by keyword. A negative weight demotes; that is how noise gets buried.",
   "rules.empty": "No rules yet. Rules boost or bury items by keyword.",
@@ -133,7 +121,6 @@
   "rules.delete.confirm": "Delete {name}? Scores will be recomputed.",
   "rules.disabledByBudget": "Disabled automatically: {reason}",
   "rules.rescoreQueued": "Scores are being recomputed for the last 30 days.",
-
   "rules.test.title": "Live test",
   "rules.test.hint": "Checked against the 300 most recent items as you type. Nothing is saved.",
   "rules.test.pending": "Testing…",
@@ -142,7 +129,6 @@
   "rules.test.invalid": "{error}",
   "rules.test.needsPattern": "Enter a pattern to test it.",
   "rules.test.matchIn": "in {field}",
-
   "breakdown.title": "Why this score",
   "breakdown.open": "Explain",
   "breakdown.close": "Close",
@@ -156,11 +142,9 @@
   "breakdown.formula": "({base} + {rules} + {engagement}) × {sourceWeight} × {recencyDecay} = {total}",
   "breakdown.stored": "Stored score: {stored}. Recomputed now: {live}.",
   "breakdown.drift": "The difference is age: the recency term keeps falling between hourly refreshes.",
-
   "settings.title": "Settings",
   "settings.error": "Could not load settings.",
   "settings.saved": "Saved",
-
   "settings.reddit.title": "Reddit",
   "settings.reddit.intro": "Reddit needs an OAuth app. Registration is not self-service and approval takes two to four weeks, so register early.",
   "settings.reddit.clientId": "Client ID",
@@ -175,7 +159,6 @@
   "settings.reddit.testOk": "Reddit accepted the credentials from {origin}.",
   "settings.reddit.testFailed": "{message}",
   "settings.reddit.budget": "Budget: {remaining} requests left, window resets in {resetIn}s.",
-
   "settings.nitter.title": "X via Nitter",
   "settings.nitter.intro": "X support is best-effort. The official API has no free tier, so this goes through a self-hosted Nitter instance. List instances in order, self-hosted first.",
   "settings.nitter.urls": "Instance base URLs, one per line",
@@ -187,10 +170,41 @@
   "settings.nitter.instanceOk": "{baseUrl} — {message} ({durationMs}ms)",
   "settings.nitter.instanceFailed": "{baseUrl} — {message}",
   "settings.nitter.allFailed": "No instance is working. X sources will fail until one is.",
-
   "settings.retention.title": "Retention",
   "settings.retention.days": "Delete unstarred items older than this many days",
-
   "error.conflict": "That already exists.",
-  "error.generic": "Something went wrong: {message}"
+  "error.generic": "Something went wrong: {message}",
+  "nav.label": "Main navigation",
+  "nav.open": "Open navigation",
+  "nav.close": "Close navigation",
+  "nav.skipToContent": "Skip to content",
+  "nav.tagsSection": "Tags",
+  "topbar.search": "Search",
+  "topbar.refresh": "Refresh",
+  "topbar.theme": "Theme: {mode}",
+  "shortcuts.title": "Keyboard shortcuts",
+  "shortcuts.next": "Next item",
+  "shortcuts.previous": "Previous item",
+  "shortcuts.open": "Open the focused item",
+  "shortcuts.toggleRead": "Mark read or unread",
+  "shortcuts.star": "Star or unstar",
+  "shortcuts.refresh": "Refresh this view",
+  "shortcuts.search": "Focus search",
+  "shortcuts.theme": "Cycle light, dark, system",
+  "shortcuts.help": "Show this list",
+  "shortcuts.dismiss": "Close a dialog or panel",
+  "theme.title": "Appearance",
+  "theme.mode.label": "Mode",
+  "theme.mode.light": "Light",
+  "theme.mode.dark": "Dark",
+  "theme.mode.system": "System",
+  "theme.accent.label": "Accent hue: {hue}°",
+  "theme.accent.preset": "Use hue {hue}°",
+  "theme.chroma.label": "Intensity",
+  "theme.chroma.muted": "Muted",
+  "theme.chroma.vivid": "Vivid",
+  "health.degraded": "Some sources need attention.",
+  "reader.item.points": "{count} points",
+  "reader.item.starred": "Starred",
+  "reader.filter.clearTag": "Clear"
 }

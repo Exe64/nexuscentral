@@ -8,9 +8,10 @@
  * empty submission means "leave it alone". Clearing is a separate, explicit action.
  */
 
-import { useEffect, useState, type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import type { Settings as SettingsShape } from '@feedhub/shared';
 import { useSettings, useTestNitter, useTestReddit, useUpdateSettings } from '../api/queries.ts';
+import { AppearancePanel } from '../components/AppearancePanel.tsx';
 import { useT, type Translate } from '../i18n.tsx';
 
 function RedditPanel({ settings, t }: { settings: SettingsShape; t: Translate }): ReactNode {
@@ -121,13 +122,11 @@ function RedditPanel({ settings, t }: { settings: SettingsShape; t: Translate })
 function NitterPanel({ settings, t }: { settings: SettingsShape; t: Translate }): ReactNode {
   const update = useUpdateSettings();
   const test = useTestNitter();
+  // Seeded once from the server, which includes the environment default when
+  // nothing is stored. No effect syncs it afterwards: this panel only mounts once
+  // the settings have loaded, and re-syncing would clobber an edit in progress
+  // whenever a refetch landed.
   const [text, setText] = useState(settings.nitterBaseUrls.join('\n'));
-
-  // The effective list can change underneath the form -- the environment default
-  // applies until something is saved.
-  useEffect(() => {
-    setText(settings.nitterBaseUrls.join('\n'));
-  }, [settings.nitterBaseUrls]);
 
   return (
     <section>
@@ -248,11 +247,11 @@ export function Settings(): ReactNode {
   }
 
   return (
-    <section>
-      <h2>{t('settings.title')}</h2>
+    <div className="space-y-8">
+      <AppearancePanel />
       <RedditPanel settings={settings.data} t={t} />
       <NitterPanel settings={settings.data} t={t} />
       <RetentionPanel settings={settings.data} t={t} />
-    </section>
+    </div>
   );
 }

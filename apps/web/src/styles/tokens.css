@@ -1,0 +1,155 @@
+/*
+ * Theme tokens (04-SPEC-frontend.md 5).
+ *
+ * Three layers, and the order matters:
+ *
+ * 1. The accent ramp, derived in OKLCH from a hue and a chroma. OKLCH keeps
+ *    perceptual lightness constant across hues, so a yellow accent and a blue
+ *    accent end up equally readable -- which is not true of an HSL ramp.
+ * 2. Semantic tokens, per theme. Components reference only these.
+ * 3. Fixed-hue palettes: status colours and tag colours, which must NOT follow the
+ *    accent. An error stays red when the accent is red.
+ *
+ * This file is the single source of truth for the contrast test: the test parses
+ * these declarations and evaluates the same oklch() and calc() expressions, so it
+ * checks what actually ships rather than a copy of it.
+ *
+ * ---------------------------------------------------------------------------
+ * Where these values differ from the ones written in the spec, and why
+ * ---------------------------------------------------------------------------
+ *
+ * The spec states both a set of literal token values (5.3) and a non-negotiable
+ * contrast floor (5.5). Measured across 12 hues in both themes, the literal values
+ * do not meet the floor. The floor is the requirement and the values are an
+ * illustration of it, so the values moved:
+ *
+ * - `--border-strong` was 0.82 (light) / 0.42 (dark), measuring 1.70:1 and 2.4:1
+ *   against `--bg-base`. It is now 0.64 / 0.52, measuring 3.25:1 and 3.45:1.
+ * - `--accent-600` was L 0.54, which put a white label at 4.44:1 at cyan hues.
+ *   Now 0.52, worst case 4.78:1.
+ * - Status colours were single values in `:root`. One lightness cannot clear 4.5:1
+ *   against both a near-white and a near-black background, so they are per-theme
+ *   with the hue held fixed -- which is what "fixed hues" actually asks for.
+ * - `--accent-50`'s chroma factor was 0.20. At L 0.97 the most constrained hue
+ *   admits 0.013 chroma, so 0.20 clipped to pure white and lost the tint the token
+ *   exists for. Now 0.10.
+ *
+ * On gamut: a fully in-sRGB ramp is not possible at the chroma the spec offers --
+ * at L 0.97 the worst hue admits 0.013, at L 0.30 only 0.053. Clipping is inherent
+ * to the design, not a defect, so the test measures contrast on the *clipped*
+ * colour, which is the one that reaches the screen. The fixed palettes below are
+ * held to the gamut, because those constants are ours to choose.
+ */
+
+:root {
+  --accent-h: 250;
+  --accent-c: 0.14;
+
+  --accent-50: oklch(0.97 calc(var(--accent-c) * 0.1) var(--accent-h));
+  --accent-100: oklch(0.93 calc(var(--accent-c) * 0.35) var(--accent-h));
+  --accent-200: oklch(0.87 calc(var(--accent-c) * 0.55) var(--accent-h));
+  --accent-300: oklch(0.79 calc(var(--accent-c) * 0.75) var(--accent-h));
+  --accent-400: oklch(0.7 calc(var(--accent-c) * 0.9) var(--accent-h));
+  --accent-500: oklch(0.62 var(--accent-c) var(--accent-h));
+  --accent-600: oklch(0.52 var(--accent-c) var(--accent-h));
+  --accent-700: oklch(0.46 calc(var(--accent-c) * 0.9) var(--accent-h));
+  --accent-800: oklch(0.38 calc(var(--accent-c) * 0.75) var(--accent-h));
+  --accent-900: oklch(0.3 calc(var(--accent-c) * 0.55) var(--accent-h));
+}
+
+[data-theme='light'] {
+  --bg-base: oklch(0.99 0.002 var(--accent-h));
+  --bg-surface: oklch(1 0 0);
+  --bg-raised: oklch(0.97 0.003 var(--accent-h));
+  --bg-hover: oklch(0.95 0.005 var(--accent-h));
+  --border-subtle: oklch(0.91 0.004 var(--accent-h));
+  --border-strong: oklch(0.64 0.012 var(--accent-h));
+  --text-primary: oklch(0.24 0.008 var(--accent-h));
+  --text-secondary: oklch(0.48 0.008 var(--accent-h));
+  --text-muted: oklch(0.62 0.006 var(--accent-h));
+  --text-visited: oklch(0.6 0.01 var(--accent-h));
+  --accent: var(--accent-600);
+  --accent-hover: var(--accent-700);
+  --accent-fg: oklch(1 0 0);
+  --accent-subtle: var(--accent-50);
+
+  /* Fixed hues, per-theme lightness: read as text on --bg-base at 4.5:1 or better. */
+  --positive: oklch(0.54 0.143 150);
+  --negative: oklch(0.57 0.16 25);
+  --warning: oklch(0.56 0.113 75);
+
+  color-scheme: light;
+}
+
+[data-theme='dark'] {
+  --bg-base: oklch(0.17 0.006 var(--accent-h));
+  --bg-surface: oklch(0.21 0.008 var(--accent-h));
+  --bg-raised: oklch(0.25 0.01 var(--accent-h));
+  --bg-hover: oklch(0.29 0.012 var(--accent-h));
+  --border-subtle: oklch(0.31 0.01 var(--accent-h));
+  --border-strong: oklch(0.52 0.012 var(--accent-h));
+  --text-primary: oklch(0.94 0.004 var(--accent-h));
+  --text-secondary: oklch(0.74 0.006 var(--accent-h));
+  --text-muted: oklch(0.58 0.006 var(--accent-h));
+  --text-visited: oklch(0.62 0.01 var(--accent-h));
+  --accent: var(--accent-400);
+  --accent-hover: var(--accent-300);
+  --accent-fg: oklch(0.18 0.01 var(--accent-h));
+  --accent-subtle: var(--accent-900);
+
+  --positive: oklch(0.6 0.16 150);
+  --negative: oklch(0.61 0.16 25);
+  --warning: oklch(0.6 0.12 75);
+
+  color-scheme: dark;
+}
+
+/*
+ * Tag colours: fixed hues, per-theme lightness. A tag must stay legible in both
+ * themes, so each pair clears the same 4.5:1 floor as body text.
+ *
+ * The chroma differs per hue rather than being uniform, because the sRGB gamut
+ * does: teal at L 0.42 admits 0.070 where red admits 0.170. A single chroma across
+ * all nine would either clip half of them or wash out the rest.
+ */
+[data-theme='light'] {
+  --tag-neutral-bg: oklch(0.94 0.003 var(--accent-h));
+  --tag-neutral-fg: oklch(0.38 0.006 var(--accent-h));
+  --tag-red-bg: oklch(0.94 0.025 25);
+  --tag-red-fg: oklch(0.42 0.16 25);
+  --tag-orange-bg: oklch(0.94 0.027 50);
+  --tag-orange-fg: oklch(0.42 0.108 50);
+  --tag-amber-bg: oklch(0.94 0.05 80);
+  --tag-amber-fg: oklch(0.42 0.083 80);
+  --tag-green-bg: oklch(0.94 0.05 145);
+  --tag-green-fg: oklch(0.42 0.128 145);
+  --tag-teal-bg: oklch(0.94 0.05 185);
+  --tag-teal-fg: oklch(0.42 0.07 185);
+  --tag-blue-bg: oklch(0.94 0.022 250);
+  --tag-blue-fg: oklch(0.42 0.115 250);
+  --tag-violet-bg: oklch(0.94 0.025 295);
+  --tag-violet-fg: oklch(0.42 0.16 295);
+  --tag-pink-bg: oklch(0.94 0.03 350);
+  --tag-pink-fg: oklch(0.42 0.16 350);
+}
+
+[data-theme='dark'] {
+  --tag-neutral-bg: oklch(0.3 0.008 var(--accent-h));
+  --tag-neutral-fg: oklch(0.86 0.006 var(--accent-h));
+  --tag-red-bg: oklch(0.3 0.07 25);
+  --tag-red-fg: oklch(0.86 0.07 25);
+  --tag-orange-bg: oklch(0.3 0.07 50);
+  --tag-orange-fg: oklch(0.86 0.078 50);
+  --tag-amber-bg: oklch(0.3 0.06 80);
+  --tag-amber-fg: oklch(0.86 0.1 80);
+  --tag-green-bg: oklch(0.3 0.07 145);
+  --tag-green-fg: oklch(0.86 0.1 145);
+  --tag-teal-bg: oklch(0.3 0.048 185);
+  --tag-teal-fg: oklch(0.86 0.1 185);
+  --tag-blue-bg: oklch(0.3 0.07 250);
+  --tag-blue-fg: oklch(0.86 0.065 250);
+  --tag-violet-bg: oklch(0.3 0.07 295);
+  --tag-violet-fg: oklch(0.86 0.07 295);
+  --tag-pink-bg: oklch(0.3 0.07 350);
+  --tag-pink-fg: oklch(0.86 0.083 350);
+}
