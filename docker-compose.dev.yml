@@ -1,0 +1,16 @@
+# Development overlay: publishes PostgreSQL on the host so `pnpm dev` and the
+# integration tests can reach it.
+#
+# Deliberately NOT named docker-compose.override.yml -- that filename is loaded
+# automatically, including on the VPS, and publishing the database there would
+# undo a constraint the deployment relies on (00-CONTEXT.md 5). Opt in
+# explicitly:
+#
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d postgres
+#
+# Then run the app from the host with `pnpm dev`.
+
+services:
+  postgres:
+    ports:
+      - '127.0.0.1:${POSTGRES_PORT:-5432}:5432'

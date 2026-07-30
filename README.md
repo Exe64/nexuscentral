@@ -39,10 +39,18 @@ Requires Node 22 and pnpm 9, plus a PostgreSQL 16 you can reach.
 
 ```bash
 pnpm install
-cp .env.example .env        # set DATABASE_URL at least
+cp .env.example .env        # set POSTGRES_PASSWORD and DATABASE_URL
+
+# Run only the database in Docker; the app runs on the host.
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d postgres
+
 pnpm --filter @feedhub/api migrate up
 pnpm dev                    # API on :3000, Vite on :5173 proxying /api
 ```
+
+`docker-compose.dev.yml` exists purely to publish PostgreSQL on `127.0.0.1:5432`. It is not
+named `docker-compose.override.yml` on purpose: that filename loads automatically, including
+on the VPS, and publishing the database there would undo a deployment constraint.
 
 Useful commands:
 
