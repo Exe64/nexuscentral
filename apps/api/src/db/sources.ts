@@ -184,6 +184,12 @@ export interface CreateSourceInput {
   active?: boolean;
   pollIntervalSeconds: number;
   tagIds?: readonly number[];
+  /**
+   * Recorded at creation when the source cannot be polled yet -- missing Reddit
+   * credentials, no Nitter instance. The UI renders `health.lastError`, so this is
+   * how a deliberately inactive source explains itself.
+   */
+  lastError?: string;
 }
 
 export async function createSource(input: CreateSourceInput): Promise<Source> {
@@ -192,8 +198,8 @@ export async function createSource(input: CreateSourceInput): Promise<Source> {
     try {
       const { rows } = await client.query<{ id: number }>(
         `INSERT INTO sources
-           (kind, identifier, title, site_url, icon_url, weight, active, poll_interval)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, make_interval(secs => $8))
+           (kind, identifier, title, site_url, icon_url, weight, active, poll_interval, last_error)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, make_interval(secs => $8), $9)
          RETURNING id`,
         [
           input.kind,
@@ -204,6 +210,7 @@ export async function createSource(input: CreateSourceInput): Promise<Source> {
           input.weight ?? 1,
           input.active ?? true,
           input.pollIntervalSeconds,
+          input.lastError ?? null,
         ],
       );
       inserted = (rows[0] as { id: number }).id;
@@ -360,12 +367,16 @@ export interface PollSuccess {
   etag?: string | undefined;
   lastModified?: string | undefined;
   /**
-   * `items` -- the run returned content.
-   * `empty`  -- HTTP 200 with zero items. This is how a Nitter instance dies
-   *             silently, so it counts towards `consecutive_empty`.
-   * `not_modified` -- HTTP 304. Legitimately zero items; leaves the counter alone.
+   * `items`     -- the run returned content; the empty counter resets.
+   * `empty`     -- zero items where that is a symptom. This is how a Nitter
+   *                instance dies silently, so it counts towards
+   *                `consecutive_empty`.
+   * `unchanged` -- zero items where that is the normal steady state: an HTTP 304,
+   *                or a cursor-based adapter reporting nothing new. Leaves the
+   *                counter untouched, because otherwise every quiet subreddit
+   *                would raise a health alert every 45 minutes.
    */
-  outcome: 'items' | 'empty' | 'not_modified';
+  outcome: 'items' | 'empty' | 'unchanged';
 }
 
 export async function markPollSuccess(id: number, result: PollSuccess): Promise<number> {
@@ -418,27 +429,58 @@ export async function markPollFailure(id: number, message: string): Promise<Poll
   };
 }
 
-/** Counts for `GET /api/health`. `stale` means overdue by more than 3 intervals. */
-export async function sourceHealthCounts(): Promise<{
+/** The most recent poll attempt across every source, for `GET /api/health`. */
+export async function lastPollAt(): Promise<string | null> {
+  const { rows } = await query<{ at: Date | null }>(`SELECT max(last_run_at) AS at FROM sources`);
+  return rows[0]?.at?.toISOString() ?? null;
+}
+
+export interface SourceHealthCounts {
   total: number;
   active: number;
   failing: number;
   stale: number;
-}> {
-  const { rows } = await query<{
-    total: number;
-    active: number;
-    failing: number;
-    stale: number;
-  }>(
+  /**
+   * Sources returning a well-formed feed with nothing in it, repeatedly.
+   *
+   * Counted separately from `failing` because nothing about those runs looked
+   * like an error: HTTP 200, a parseable feed, zero items. This is the counter
+   * the Nitter silent-death rule exists for, and it is what the `source_health`
+   * widget selects on alongside `consecutive_failures > 0`.
+   */
+  silentlyEmpty: number;
+}
+
+/** Counts for `GET /api/health`. `stale` means overdue by more than 3 intervals. */
+export async function sourceHealthCounts(): Promise<SourceHealthCounts> {
+  const { rows } = await query<SourceHealthCounts>(
     `SELECT count(*)::int AS total,
             count(*) FILTER (WHERE active)::int AS active,
             count(*) FILTER (WHERE consecutive_failures > 0)::int AS failing,
+            count(*) FILTER (WHERE consecutive_empty >= $1)::int AS "silentlyEmpty",
             count(*) FILTER (
               WHERE active AND last_run_at IS NOT NULL
                 AND last_run_at + (poll_interval * 3) < now()
             )::int AS stale
        FROM sources`,
+    [EMPTY_RUNS_BEFORE_ALERT],
   );
-  return rows[0] ?? { total: 0, active: 0, failing: 0, stale: 0 };
+  return rows[0] ?? { total: 0, active: 0, failing: 0, stale: 0, silentlyEmpty: 0 };
+}
+
+/**
+ * The sources the `source_health` widget lists: anything failing or silently
+ * empty (04-SPEC-frontend.md 4.4).
+ */
+export async function listUnhealthySources(): Promise<Source[]> {
+  const { rows } = await query<SourceRow>(
+    `SELECT ${SOURCE_COLUMNS}
+       FROM sources s
+      WHERE s.consecutive_failures > 0 OR s.consecutive_empty >= $1
+      ORDER BY s.consecutive_failures DESC, s.consecutive_empty DESC, s.title ASC`,
+    [EMPTY_RUNS_BEFORE_ALERT],
+  );
+
+  const tags = await tagsBySourceId(rows.map((row) => row.id));
+  return rows.map((row) => toSource(row, tags.get(row.id) ?? []));
 }

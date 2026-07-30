@@ -316,6 +316,28 @@ export async function insertItems(
   return { insertedIds: rows.map((row) => row.id), considered: batch.length };
 }
 
+/**
+ * The newest Reddit fullname stored for a source, for use as a `before` cursor.
+ *
+ * Ordered by `published_at`, not by `id`: insertion order follows when we happened
+ * to poll, and a listing can arrive out of order. `raw` is nulled for items older
+ * than 7 days, so a source left unpolled for longer falls back to a full listing
+ * rather than passing a cursor Reddit would reject.
+ */
+export async function newestFullnameForSource(sourceId: number): Promise<string | null> {
+  const { rows } = await query<{ fullname: string }>(
+    `SELECT raw->>'name' AS fullname
+       FROM items
+      WHERE source_id = $1
+        AND raw ? 'name'
+        AND raw->>'name' <> ''
+      ORDER BY published_at DESC
+      LIMIT 1`,
+    [sourceId],
+  );
+  return rows[0]?.fullname ?? null;
+}
+
 export async function countItemsForSource(sourceId: number): Promise<number> {
   const { rows } = await query<{ n: number }>(
     `SELECT count(*)::int AS n FROM items WHERE source_id = $1`,

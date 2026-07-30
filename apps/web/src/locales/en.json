@@ -4,6 +4,7 @@
   "nav.reader": "Reader",
   "nav.sources": "Sources",
   "nav.tags": "Tags",
+  "nav.settings": "Settings",
 
   "common.loading": "Loading…",
   "common.retry": "Try again",
@@ -96,6 +97,40 @@
   "tags.rename": "Rename",
   "tags.delete.confirm": "Delete {name}? It is removed from {sourceCount} sources.",
   "tags.deleted": "Tag deleted. {widgets} widgets referenced it.",
+
+  "settings.title": "Settings",
+  "settings.error": "Could not load settings.",
+  "settings.saved": "Saved",
+
+  "settings.reddit.title": "Reddit",
+  "settings.reddit.intro": "Reddit needs an OAuth app. Registration is not self-service and approval takes two to four weeks, so register early.",
+  "settings.reddit.clientId": "Client ID",
+  "settings.reddit.clientSecret": "Client secret",
+  "settings.reddit.secretPlaceholder": "Leave blank to keep the stored secret",
+  "settings.reddit.configured": "Configured, from {origin}.",
+  "settings.reddit.notConfigured": "Not configured. Reddit sources stay inactive until a client id and secret are set.",
+  "settings.reddit.envOverrides": "REDDIT_CLIENT_ID and REDDIT_CLIENT_SECRET are set in the environment and take precedence. Editing these fields will not change which credentials are used.",
+  "settings.reddit.clear": "Clear stored credentials",
+  "settings.reddit.test": "Test connection",
+  "settings.reddit.testing": "Testing…",
+  "settings.reddit.testOk": "Reddit accepted the credentials from {origin}.",
+  "settings.reddit.testFailed": "{message}",
+  "settings.reddit.budget": "Budget: {remaining} requests left, window resets in {resetIn}s.",
+
+  "settings.nitter.title": "X via Nitter",
+  "settings.nitter.intro": "X support is best-effort. The official API has no free tier, so this goes through a self-hosted Nitter instance. List instances in order, self-hosted first.",
+  "settings.nitter.urls": "Instance base URLs, one per line",
+  "settings.nitter.usingEnv": "Using NITTER_BASE_URLS from the environment. Saving here overrides it.",
+  "settings.nitter.usingSettings": "Using the instances saved here.",
+  "settings.nitter.none": "No instance configured. X sources stay inactive until one is set.",
+  "settings.nitter.test": "Test instances",
+  "settings.nitter.testing": "Testing…",
+  "settings.nitter.instanceOk": "{baseUrl} — {message} ({durationMs}ms)",
+  "settings.nitter.instanceFailed": "{baseUrl} — {message}",
+  "settings.nitter.allFailed": "No instance is working. X sources will fail until one is.",
+
+  "settings.retention.title": "Retention",
+  "settings.retention.days": "Delete unstarred items older than this many days",
 
   "error.conflict": "That already exists.",
   "error.generic": "Something went wrong: {message}"

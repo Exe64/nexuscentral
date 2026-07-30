@@ -180,6 +180,22 @@ export interface DashboardWithWidgets extends Dashboard {
   widgets: Widget[];
 }
 
+/** Where a setting's effective value came from. */
+export type SettingOrigin = 'env' | 'settings';
+
+/**
+ * Reddit credential status.
+ *
+ * The secret itself is never returned. `origin` and `envOverridesSettings` are:
+ * an environment variable wins over the stored value, and without saying so the
+ * settings form would appear to accept edits that change nothing.
+ */
+export interface RedditCredentialStatus {
+  configured: boolean;
+  origin: SettingOrigin | null;
+  envOverridesSettings: boolean;
+}
+
 /**
  * Settings as returned by the API. Secret columns are never included -- each is
  * replaced by a boolean `configured` flag.
@@ -191,8 +207,10 @@ export interface Settings {
   itemsRetentionDays: number;
   alertWebhookUrl: string | null;
   alertWebhookKind: WebhookKind;
-  redditConfigured: boolean;
+  reddit: RedditCredentialStatus;
+  /** The list actually in use, after the environment fallback is applied. */
   nitterBaseUrls: string[];
+  nitterBaseUrlsOrigin: SettingOrigin;
   updatedAt: string;
 }
 

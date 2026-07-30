@@ -151,6 +151,28 @@ async function start(): Promise<PgBoss> {
   return instance;
 }
 
+/**
+ * Queue depth for `GET /api/health`.
+ *
+ * Zeroes when no worker runs in this process: reporting an empty queue is
+ * accurate from here, and the health endpoint must not fail because the queues
+ * live somewhere else.
+ */
+export async function queueDepth(): Promise<{ pending: number; failed: number }> {
+  if (boss === null) return { pending: 0, failed: 0 };
+
+  try {
+    const [pending, failed] = await Promise.all([
+      boss.getQueueSize(QUEUE.pollSource),
+      boss.getQueueSize(QUEUE.pollSource, { before: 'failed' }),
+    ]);
+    return { pending, failed };
+  } catch (err) {
+    log.warn({ err }, 'Could not read queue depth');
+    return { pending: 0, failed: 0 };
+  }
+}
+
 export async function stopWorker(): Promise<void> {
   // A shutdown signal can arrive mid-startup; wait for the instance rather than
   // leaving a half-started pg-boss holding connections.

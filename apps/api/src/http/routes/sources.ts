@@ -12,9 +12,11 @@ import {
   findSourceByIdentity,
   getSource,
   listSources,
+  listUnhealthySources,
   updateSource,
 } from '../../db/sources.js';
 import { assertTagsExist } from '../../db/tags.js';
+import { getRawSettings, isRedditConfigured, resolveNitterBaseUrls } from '../../db/settings.js';
 import { buildOpml, parseOpml } from '../../opml/index.js';
 import { importOpml } from '../../ingest/import.js';
 import { parsePollInterval } from '../../lib/interval.js';
@@ -32,6 +34,11 @@ const listQuerySchema = z.object({
   tag: z.coerce.number().int().positive().optional(),
   active: queryBoolean,
   q: z.string().optional(),
+  /**
+   * `unhealthy` selects what the source_health widget shows: anything failing or
+   * silently empty, worst first.
+   */
+  health: z.enum(['unhealthy']).optional(),
 });
 
 const createSchema = z.object({
@@ -73,12 +80,17 @@ const importSchema = z.object({
 
 sourcesRouter.get('/sources', async (req, res) => {
   const query = parseQuery(listQuerySchema, req);
-  const data = await listSources({
-    kind: query.kind,
-    tagId: query.tag,
-    active: query.active,
-    q: query.q,
-  });
+
+  const data =
+    query.health === 'unhealthy'
+      ? await listUnhealthySources()
+      : await listSources({
+          kind: query.kind,
+          tagId: query.tag,
+          active: query.active,
+          q: query.q,
+        });
+
   res.json({ data });
 });
 
@@ -183,6 +195,12 @@ sourcesRouter.post('/sources', async (req, res) => {
   const pollIntervalSeconds = parsePollInterval(body.pollInterval);
   const identifier = normalizeIdentifier(body.kind, body.identifier);
 
+  // A source of a kind that cannot be polled yet is still worth creating -- the
+  // user found it now and would not come back to add it later. It is created
+  // inactive with the reason recorded, so the UI can explain itself instead of
+  // showing a healthy source that silently produces nothing.
+  const blockedReason = await unpollableReason(body.kind);
+
   const source = await createSource({
     kind: body.kind,
     identifier,
@@ -190,9 +208,10 @@ sourcesRouter.post('/sources', async (req, res) => {
     siteUrl: body.siteUrl ?? null,
     iconUrl: body.iconUrl ?? null,
     weight: body.weight,
-    ...(body.active === undefined ? {} : { active: body.active }),
+    active: blockedReason === null ? (body.active ?? true) : false,
     pollIntervalSeconds,
     tagIds: body.tagIds,
+    ...(blockedReason === null ? {} : { lastError: blockedReason }),
   });
 
   // Fetch straight away rather than waiting up to a full interval: a source that
@@ -201,6 +220,27 @@ sourcesRouter.post('/sources', async (req, res) => {
 
   res.status(201).json({ data: source });
 });
+
+/**
+ * Why this kind of source cannot be polled right now, or null when it can.
+ *
+ * Reddit needs OAuth credentials; app registration is not self-service and takes
+ * weeks. Nitter needs at least one instance. Both are configuration, not failure.
+ */
+async function unpollableReason(kind: SourceKind): Promise<string | null> {
+  if (kind === 'reddit') {
+    return (await isRedditConfigured())
+      ? null
+      : 'Reddit credentials are not configured. Add a client id and secret in Settings, then activate this source.';
+  }
+  if (kind === 'nitter') {
+    const { urls } = resolveNitterBaseUrls(await getRawSettings());
+    return urls.length > 0
+      ? null
+      : 'No Nitter instance is configured. Add one in Settings, then activate this source.';
+  }
+  return null;
+}
 
 sourcesRouter.get('/sources/:id', async (req, res) => {
   const source = await getSource(intParam(req, 'id'));

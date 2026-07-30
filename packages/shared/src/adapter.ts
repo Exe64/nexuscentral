@@ -56,6 +56,18 @@ export interface FetchResult {
   notModified?: boolean;
   etag?: string;
   lastModified?: string;
+  /**
+   * Set when zero items is the normal steady state for this run rather than a
+   * symptom.
+   *
+   * A cursor-based adapter asking "anything since X?" gets an empty answer most
+   * of the time, and counting that towards silent-death detection would flag
+   * every quiet subreddit. Nitter is the opposite case: it fails by returning a
+   * well-formed empty feed, which is exactly what that counter exists to catch.
+   */
+  emptyIsExpected?: boolean;
+  /** Opaque cursor state to persist for the next run, when the adapter uses one. */
+  cursor?: string;
 }
 
 /** A candidate returned by `resolve`, ready to become a source. */

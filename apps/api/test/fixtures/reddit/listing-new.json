@@ -1,0 +1,90 @@
+{
+  "kind": "Listing",
+  "data": {
+    "after": null,
+    "before": null,
+    "children": [
+      {
+        "kind": "t3",
+        "data": {
+          "name": "t3_1p9zab",
+          "subreddit": "nutanix",
+          "title": "Monthly discussion thread",
+          "selftext": "Ask anything here.",
+          "author": "AutoModerator",
+          "permalink": "/r/nutanix/comments/1p9zab/monthly_discussion_thread/",
+          "url": "https://reddit.com/r/nutanix/comments/1p9zab/monthly_discussion_thread/",
+          "created_utc": 1785000000,
+          "ups": 12,
+          "num_comments": 40,
+          "stickied": true,
+          "is_self": true
+        }
+      },
+      {
+        "kind": "t3",
+        "data": {
+          "name": "t3_1p9y77",
+          "subreddit": "nutanix",
+          "title": "AOS 7.2 upgrade notes from a 40-node cluster",
+          "selftext": "We hit <b>two</b> issues worth writing down.\n\nFirst, the pre-check &amp; timeout.",
+          "author": "storage_admin",
+          "permalink": "/r/nutanix/comments/1p9y77/aos_72_upgrade_notes_from_a_40node_cluster/",
+          "url": "https://reddit.com/r/nutanix/comments/1p9y77/aos_72_upgrade_notes_from_a_40node_cluster/",
+          "created_utc": 1785398400,
+          "ups": 214,
+          "num_comments": 37,
+          "stickied": false,
+          "is_self": true,
+          "over_18": false
+        }
+      },
+      {
+        "kind": "t3",
+        "data": {
+          "name": "t3_1p9x02",
+          "subreddit": "nutanix",
+          "title": "Nutanix publishes CVE-2026-31337 advisory",
+          "selftext": "",
+          "author": "netsec_reader",
+          "permalink": "/r/nutanix/comments/1p9x02/nutanix_publishes_cve202631337_advisory/",
+          "url": "https://portal.nutanix.com/advisory/cve-2026-31337",
+          "created_utc": 1785312000,
+          "ups": 88,
+          "num_comments": 9,
+          "stickied": false,
+          "is_self": false
+        }
+      },
+      {
+        "kind": "t3",
+        "data": {
+          "name": "t3_1p9w41",
+          "subreddit": "nutanix",
+          "title": "Sizing question: NVMe cache ratio for mixed workloads",
+          "author": "new_here_2026",
+          "permalink": "/r/nutanix/comments/1p9w41/sizing_question_nvme_cache_ratio/",
+          "url": "https://reddit.com/r/nutanix/comments/1p9w41/sizing_question_nvme_cache_ratio/",
+          "created_utc": 1785225600,
+          "ups": 0,
+          "num_comments": 0,
+          "stickied": false,
+          "is_self": true
+        }
+      },
+      {
+        "kind": "t3",
+        "data": {
+          "name": "t3_1p9v33",
+          "subreddit": "nutanix",
+          "title": "This post has no permalink and cannot be stored",
+          "author": "broken",
+          "created_utc": 1785139200,
+          "ups": 3,
+          "num_comments": 1,
+          "stickied": false
+        }
+      }
+    ]
+  }
+}

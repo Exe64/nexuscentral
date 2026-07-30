@@ -8,11 +8,14 @@
 
 import type { ResolvedSource, SourceAdapter, SourceKind } from '@feedhub/shared';
 import { rssAdapter } from './rss/index.js';
+import { redditAdapter, RedditNotConfiguredError } from './reddit/index.js';
+import { nitterAdapter, NitterNotConfiguredError } from './nitter/index.js';
 import { HttpError } from '../http/errors.js';
 
-/** Reddit and Nitter adapters land in Phase 2. */
-const ADAPTERS: Partial<Record<SourceKind, SourceAdapter>> = {
+const ADAPTERS: Record<SourceKind, SourceAdapter> = {
   rss: rssAdapter,
+  reddit: redditAdapter,
+  nitter: nitterAdapter,
 };
 
 export function getAdapter(kind: SourceKind): SourceAdapter | undefined {
@@ -22,9 +25,7 @@ export function getAdapter(kind: SourceKind): SourceAdapter | undefined {
 export function requireAdapter(kind: SourceKind): SourceAdapter {
   const adapter = ADAPTERS[kind];
   if (adapter === undefined) {
-    throw HttpError.validation(
-      `${kind} sources are not supported by this build yet. RSS and Atom feeds work today.`,
-    );
+    throw HttpError.validation(`${kind} sources are not supported by this build.`);
   }
   return adapter;
 }
@@ -84,5 +85,15 @@ export async function resolveInput(input: string): Promise<ResolvedSource[]> {
 
   const detected = detectKind(input);
   const adapter = requireAdapter(detected.kind);
-  return adapter.resolve(detected.identifier ?? input);
+
+  try {
+    return await adapter.resolve(detected.identifier ?? input);
+  } catch (err) {
+    // Missing credentials are the operator's to fix, not an upstream failure, and
+    // must not read as a 502 with a message about the network.
+    if (err instanceof RedditNotConfiguredError || err instanceof NitterNotConfiguredError) {
+      throw HttpError.validation(err.message, { kind: detected.kind, configured: false });
+    }
+    throw err;
+  }
 }

@@ -15,6 +15,7 @@ import {
 import type {
   Item,
   ItemSort,
+  Settings,
   Source,
   SourceKind,
   Tag,
@@ -39,6 +40,7 @@ export const keys = {
     filters === undefined ? (['sources'] as const) : (['sources', filters] as const),
   source: (id: number) => ['sources', id] as const,
   items: (filters: ItemListFilters) => ['items', filters] as const,
+  settings: ['settings'] as const,
   health: ['health'] as const,
 };
 
@@ -313,6 +315,75 @@ export function useMarkAllRead(): UseMutationResult<{ updated: number }, Error, 
       void client.invalidateQueries({ queryKey: ['items'] });
       void client.invalidateQueries({ queryKey: keys.tags });
     },
+  });
+}
+
+// --- settings --------------------------------------------------------------
+
+export function useSettings(): UseQueryResult<Settings> {
+  return useQuery({
+    queryKey: keys.settings,
+    queryFn: async () => (await apiFetch<Envelope<Settings>>('/settings')).data,
+  });
+}
+
+export interface SettingsPatchBody {
+  redditClientId?: string | null;
+  redditClientSecret?: string | null;
+  nitterBaseUrls?: string[];
+  itemsRetentionDays?: number;
+}
+
+export function useUpdateSettings(): UseMutationResult<Settings, Error, SettingsPatchBody> {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (body) =>
+      (await apiFetch<Envelope<Settings>>('/settings', { method: 'PATCH', body })).data,
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: keys.settings });
+      // Configuring Reddit or Nitter changes whether a source can be polled.
+      void client.invalidateQueries({ queryKey: ['sources'] });
+      void client.invalidateQueries({ queryKey: keys.health });
+    },
+  });
+}
+
+export interface RedditTestResult {
+  ok: boolean;
+  reason?: 'not_configured' | 'rejected' | 'upstream';
+  message?: string;
+  origin?: 'env' | 'settings';
+  budget?: { remaining: number | null; resetIn: number | null; utilisation: number | null };
+}
+
+export function useTestReddit(): UseMutationResult<RedditTestResult, Error, void> {
+  return useMutation({
+    mutationFn: async () =>
+      (await apiFetch<Envelope<RedditTestResult>>('/settings/test-reddit', { method: 'POST' }))
+        .data,
+  });
+}
+
+export interface NitterInstanceResult {
+  baseUrl: string;
+  ok: boolean;
+  itemCount: number;
+  durationMs: number;
+  message: string;
+}
+
+export interface NitterTestResult {
+  ok: boolean;
+  reason?: 'not_configured';
+  message?: string;
+  instances: NitterInstanceResult[];
+}
+
+export function useTestNitter(): UseMutationResult<NitterTestResult, Error, void> {
+  return useMutation({
+    mutationFn: async () =>
+      (await apiFetch<Envelope<NitterTestResult>>('/settings/test-nitter', { method: 'POST' }))
+        .data,
   });
 }
 

@@ -25,7 +25,13 @@ export const FETCH_TIMEOUT_MS = 30_000;
 
 export interface PollOutcome {
   sourceId: number;
-  status: 'ok' | 'not_modified' | 'empty' | 'failed' | 'skipped';
+  /**
+   * `ok`           -- items returned
+   * `not_modified` -- HTTP 304
+   * `no_new_items` -- zero items, and the adapter says that is the steady state
+   * `empty`        -- zero items where that is a symptom; counts towards silent death
+   */
+  status: 'ok' | 'not_modified' | 'no_new_items' | 'empty' | 'failed' | 'skipped';
   itemCount: number;
   newCount: number;
   durationMs: number;
@@ -95,7 +101,7 @@ export async function pollSource(sourceId: number): Promise<PollOutcome> {
 
     if (result.notModified === true) {
       // 304: legitimately zero items, so it must not count as a silent failure.
-      await markPollSuccess(sourceId, { outcome: 'not_modified' });
+      await markPollSuccess(sourceId, { outcome: 'unchanged' });
       const outcome: PollOutcome = {
         sourceId,
         status: 'not_modified',
@@ -110,19 +116,26 @@ export async function pollSource(sourceId: number): Promise<PollOutcome> {
 
     const inserted = await insertItems(source, result.items);
 
+    // Three cases, not two. A cursor-based adapter reporting nothing new is not
+    // the same as a feed that has gone silent, and conflating them would flag
+    // every quiet subreddit.
+    const outcomeKind: 'items' | 'empty' | 'unchanged' =
+      result.items.length > 0 ? 'items' : result.emptyIsExpected === true ? 'unchanged' : 'empty';
+
     const consecutiveEmpty = await markPollSuccess(sourceId, {
       etag: result.etag,
       lastModified: result.lastModified,
-      outcome: result.items.length > 0 ? 'items' : 'empty',
+      outcome: outcomeKind,
     });
 
     // An adapter that fails by returning a well-formed empty feed is the Nitter
     // failure mode; do not treat empty as success just because HTTP was 200.
-    const silentDeath = result.items.length === 0 && consecutiveEmpty >= EMPTY_RUNS_BEFORE_ALERT;
+    const silentDeath = outcomeKind === 'empty' && consecutiveEmpty >= EMPTY_RUNS_BEFORE_ALERT;
 
     const outcome: PollOutcome = {
       sourceId,
-      status: result.items.length > 0 ? 'ok' : 'empty',
+      status:
+        outcomeKind === 'items' ? 'ok' : outcomeKind === 'unchanged' ? 'no_new_items' : 'empty',
       itemCount: result.items.length,
       newCount: inserted.insertedIds.length,
       durationMs: Date.now() - startedAt,

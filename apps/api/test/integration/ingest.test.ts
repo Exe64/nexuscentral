@@ -291,16 +291,19 @@ describe('health bookkeeping', () => {
     expect(outcome.status).toBe('skipped');
   });
 
-  it('records a failure for a source whose kind has no adapter yet', async () => {
+  it('records a failure a user can act on when a source cannot be polled', async () => {
+    // Reddit has an adapter but no credentials in this suite, so the poll fails
+    // for a reason the settings page can fix. Either way the UI must be able to
+    // explain why nothing is arriving rather than showing a healthy source.
     const source = await request(app)
       .post('/api/sources')
       .send({ kind: 'reddit', identifier: 'nutanix', title: 'r/nutanix' });
 
     const outcome = await pollSource(source.body.data.id);
 
-    // The UI must be able to explain why nothing is arriving.
     expect(outcome).toMatchObject({ status: 'failed' });
-    expect(outcome.error).toMatch(/adapter/i);
+    expect(outcome.error).toMatch(/credentials are not configured/i);
+    expect(outcome.error).toMatch(/Settings/);
   });
 });
 

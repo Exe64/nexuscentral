@@ -17,16 +17,45 @@ in that order; `05-BUILD-PLAN.md` defines the phase order and the acceptance cri
 
 ## Status
 
-**Phase 1 — sources, tags and RSS ingestion. Complete.**
+**Phase 2 — Reddit and Nitter. Complete.**
 
-Working today: tags and sources CRUD with the resolve preview, the RSS/Atom adapter with
-conditional requests, the `pg-boss` scheduler with per-source backoff, deduplication, OPML
-import and export, and a plain reader at `/reader`.
+Working today: tags and sources CRUD with the resolve preview; RSS/Atom, Reddit and
+best-effort X (via Nitter) adapters; the `pg-boss` scheduler with per-source backoff;
+deduplication; OPML import and export; a settings page for the integrations; and a plain
+reader at `/reader`.
 
-Not yet built: Reddit and Nitter adapters (Phase 2), scoring and rules (Phase 3), theming
-(Phase 4), the dashboard grid (Phase 5), alert delivery and `custom_api` widgets (Phase 6).
-A source whose kind has no adapter yet records a poll failure explaining why, rather than
-looking healthy and silently producing nothing.
+Not yet built: scoring and rules (Phase 3), theming (Phase 4), the dashboard grid (Phase 5),
+alert delivery and `custom_api` widgets (Phase 6).
+
+### Reddit
+
+Reddit needs an OAuth app. **Registration is not self-service and approval takes two to four
+weeks** — register before you need it. Until credentials are configured, Reddit sources are
+created _inactive_ with the reason recorded in `health.lastError`, so the UI can explain
+itself rather than showing a healthy source that silently produces nothing.
+
+Credentials come from `REDDIT_CLIENT_ID` / `REDDIT_CLIENT_SECRET` or from the settings page.
+The environment wins when both are present, and the settings page says so — otherwise saving
+the form would look like a no-op.
+
+The rate budget reads the `x-ratelimit-*` headers and enforces two limits: never consume more
+than half the window, and stop entirely below ten remaining requests. A single-user instance
+polling 60 subreddits every 15 minutes uses about 4%.
+
+### X via Nitter
+
+Best-effort and degradable. The official X API has had no free tier since February 2026, so
+this goes through a self-hosted Nitter instance. List instances in order, self-hosted first;
+the adapter tries each until one returns a parseable feed, and its failures never affect
+another source.
+
+Item URLs are rewritten from the instance to `x.com`. That is what keeps `content_hash`
+stable, so replacing an instance does not reinsert the whole timeline.
+
+A Nitter instance fails by returning a well-formed, empty feed over HTTP 200. Zero-item runs
+are counted, and at three the source is reported as `silentlyEmpty` — separately from
+`failing`, because nothing about those runs looked like an error. `GET /api/health` degrades
+on it, and `GET /api/sources?health=unhealthy` lists the affected sources.
 
 ## Testing
 

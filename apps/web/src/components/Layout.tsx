@@ -54,6 +54,9 @@ export function Layout({ children }: { children: ReactNode }): ReactNode {
             <li>
               <NavLink to="/tags">{t('nav.tags')}</NavLink>
             </li>
+            <li>
+              <NavLink to="/settings">{t('nav.settings')}</NavLink>
+            </li>
           </ul>
         </nav>
       </header>
