@@ -73,23 +73,16 @@ describe('the registries agree', () => {
     expect(Object.keys(WIDGET_RESOLVERS).sort()).toEqual([...WIDGET_TYPES].sort());
   });
 
-  it('offers every type except custom_api, which lands in Phase 6', () => {
-    expect([...AVAILABLE_WIDGET_TYPES].sort()).toEqual(
-      WIDGET_TYPES.filter((type) => type !== 'custom_api').sort(),
-    );
+  it('offers every type, custom_api included since Phase 6', () => {
+    expect([...AVAILABLE_WIDGET_TYPES].sort()).toEqual([...WIDGET_TYPES].sort());
   });
 
-  it('rejects a custom_api widget rather than returning an empty payload', async () => {
-    await expect(
-      WIDGET_RESOLVERS.custom_api({
-        id: 1,
-        dashboardId: 1,
-        type: 'custom_api',
-        title: 'Weather',
-        config: { url: 'https://example.com' },
-        layout: {},
-        createdAt: '2026-07-01T00:00:00.000Z',
-      }),
-    ).rejects.toThrow();
+  it('defaults a custom_api config without throwing, so the form can seed itself', () => {
+    // The URL is required to *save* but not to *default*: a required field here
+    // would make defaultWidgetConfig and GET /api/widget-types throw.
+    const config = defaultWidgetConfig('custom_api');
+    expect(config.url).toBe('');
+    expect(config.render).toBe('list');
+    expect(config.ttlMinutes).toBe(30);
   });
 });

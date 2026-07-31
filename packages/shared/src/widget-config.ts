@@ -54,9 +54,15 @@ export const statsWidgetConfigSchema = z.object({
   topSourceCount: z.number().int().min(1).max(20).default(5),
 });
 
-/** Phase 6 fills this in; the schema exists so the type is rejected until then. */
 export const customApiWidgetConfigSchema = z.object({
-  url: z.string().max(2000),
+  /**
+   * Empty is a valid *default*, not a valid *save*.
+   *
+   * `defaultWidgetConfig` parses `{}` to seed the config form, so a required URL
+   * here would make the form -- and `GET /api/widget-types` -- throw. The widget
+   * routes reject an empty URL on create and update instead.
+   */
+  url: z.string().max(2000).default(''),
   params: z.record(z.string()).default({}),
   headers: z.record(z.string()).default({}),
   mapping: z
@@ -110,7 +116,5 @@ export const WIDGET_GEOMETRY: Record<WidgetType, WidgetGeometry> = {
   custom_api: { defaultSize: { w: 4, h: 6 }, minSize: { w: 3, h: 3 } },
 };
 
-/** Types a user can add today. `custom_api` arrives in Phase 6. */
-export const AVAILABLE_WIDGET_TYPES: readonly WidgetType[] = WIDGET_TYPES.filter(
-  (type) => type !== 'custom_api',
-);
+/** Every type is available; `custom_api` landed in Phase 6. */
+export const AVAILABLE_WIDGET_TYPES: readonly WidgetType[] = WIDGET_TYPES;

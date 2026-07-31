@@ -7,7 +7,16 @@
 
 export type Density = 'comfortable' | 'compact';
 
-export type CustomApiRender = 'list' | 'list_with_meta' | 'single_value' | 'key_values';
+export const CUSTOM_API_RENDERS = ['list', 'list_with_meta', 'single_value', 'key_values'] as const;
+export type CustomApiRender = (typeof CUSTOM_API_RENDERS)[number];
+
+export interface CustomApiWidgetData {
+  items: GenericItem[];
+  /** Root elements matched before the cap, so the widget can say what it hid. */
+  total: number;
+  /** Echoed back so the body renders without re-reading the config. */
+  render: CustomApiRender;
+}
 
 /** The generic item shape every `custom_api` renderer will consume in Phase 6. */
 export interface GenericItem {

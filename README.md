@@ -17,19 +17,18 @@ in that order; `05-BUILD-PLAN.md` defines the phase order and the acceptance cri
 
 ## Status
 
-**Phase 5 — the dashboard grid. Complete.**
+**Phase 6 — alerting and custom API widgets. Complete.**
 
-Working today: the dashboard grid with drag, resize and per-breakpoint layouts that survive a
-reload; `feed`, `alerts`, `source_health` and `stats` widgets; the app shell with a sidebar,
-tag list and keyboard shortcuts; light and dark themes with a user-chosen accent and five
-named palettes; tags and sources CRUD with the resolve preview; RSS/Atom, Reddit and
-best-effort X (via Nitter) adapters; the `pg-boss` scheduler with per-source backoff;
-deduplication; deterministic weighted scoring with an explainable breakdown; rules with a live
-test panel; and OPML import and export.
+Working today: alert delivery to ntfy, Gotify, Discord or a generic webhook; `custom_api`
+widgets that proxy any JSON endpoint through the server; the dashboard grid with drag, resize
+and per-breakpoint layouts that survive a reload; `feed`, `alerts`, `source_health`, `stats`
+and `custom_api` widgets; the app shell with a sidebar, tag list and keyboard shortcuts; light
+and dark themes with a user-chosen accent and five named palettes; tags and sources CRUD with
+the resolve preview; RSS/Atom, Reddit and best-effort X (via Nitter) adapters; the `pg-boss`
+scheduler with per-source backoff; deduplication; deterministic weighted scoring with an
+explainable breakdown; rules with a live test panel; and OPML import and export.
 
-Not yet built: alert delivery and `custom_api` widgets (Phase 6); retention and full-text
-search in the reader (Phase 7). A rule may be marked as alerting today, and matches are listed
-by the `alerts` widget — but nothing is _delivered_ anywhere until Phase 6.
+Not yet built: retention and vacuum jobs, and full-text search wired into the reader (Phase 7).
 
 ### Theming
 
@@ -142,6 +141,60 @@ locked you out. It never prints the password or the hash.
 
 `TRUST_PROXY` matters more than it looks: the per-IP limit counts client addresses, and
 without it every request appears to come from the proxy.
+
+### Alerting
+
+A rule with `alert` on raises an alert when a **newly ingested** item matches it, and never
+otherwise. Turning alerting on for a rule sets `matched_rules` across the last 30 days without
+notifying about any of it — otherwise the first useful rule fires hundreds of pushes.
+
+Delivery goes to ntfy, Gotify, Discord or a generic webhook, configured under **Settings →
+Alerts** with a button that sends a real notification so a wrong URL is found now rather than
+when it matters. Batching is one notification per delivery, at most one a minute: forty
+matches in a poll produce one push. Retry is 1s/5s/25s inside the send, and a failure records
+`delivery_error` while leaving the alert pending — the dashboard stays the source of truth and
+a webhook that was down for an hour catches up.
+
+The configured URL is used **verbatim** for every target. The spec writes Gotify as
+`{url}/message?token=…`; appending a path to a URL someone typed produces a 404 that is
+impossible to debug behind a subpath proxy, so the settings panel says what to paste instead.
+
+### Custom API widgets
+
+A `custom_api` widget names a URL, some parameters and headers, a JSONPath `root` and a field
+mapping. The server fetches it — the browser never calls the third party, which keeps API keys
+server-side and sidesteps CORS — and renders the result through one of four generic layouts:
+list, list with detail, single value, key and value. There is no per-widget HTML.
+
+`${VAR}` in a URL, parameter or header is replaced from the server environment. A missing
+variable is an error at preview time, not an empty `Authorization: Bearer ` that looks like a
+credential problem three days later.
+
+**The SSRF guard is the load-bearing part.** A widget URL is an instruction to make this server
+issue a request, which unchecked reaches the Docker network, the host loopback, and on a cloud
+host the metadata service that hands out credentials. So: the hostname is resolved first and
+every resolved address is checked, not the name; the connection is pinned to the address that
+was checked, so a second lookup cannot return something else; redirects are followed by hand so
+each hop goes through the guard again; `Host` cannot be set by the widget; and the body is
+capped at 5 MB while reading rather than trusting `content-length`. `ALLOW_PRIVATE_TARGETS=true`
+turns it off for a homelab, and is off by default.
+
+`POST /api/custom-api/preview` runs exactly the code the widget runs, and reports what the root
+actually selected. That matters more than it sounds: jsonpath-plus does not validate paths at
+all — `$[` is quietly treated as `$` and `nonsense((` returns nothing, neither throws — so
+showing what a path selected is the only feedback that exists.
+
+#### Porting Glance widgets
+
+```bash
+pnpm --filter @nexuscentral/api port-widget path/to/README.md
+```
+
+Reads a Glance `custom-api` block as a **fetch specification**: URL, parameters, headers, and
+the `.String "field"` accessors the template reads. It prints a draft config and says which
+guesses it made. It does not interpret the Go template — that is unbounded work for no benefit
+— and it never emits markup. Glance is AGPL-3.0, and a URL with a set of field names is a fact
+rather than expression; keeping template HTML out of this is deliberate.
 
 ### Keyboard
 

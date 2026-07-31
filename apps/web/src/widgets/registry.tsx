@@ -17,6 +17,7 @@ import {
   type WidgetType,
 } from '@nexuscentral/shared';
 import { AlertsWidget, AlertsConfigForm } from './AlertsWidget.tsx';
+import { CustomApiWidget, CustomApiConfigForm } from './CustomApiWidget.tsx';
 import { FeedWidget, FeedConfigForm } from './FeedWidget.tsx';
 import { SourceHealthWidget, SourceHealthConfigForm } from './SourceHealthWidget.tsx';
 import { StatsWidget, StatsConfigForm } from './StatsWidget.tsx';
@@ -89,7 +90,7 @@ export const WIDGET_REGISTRY: Partial<Record<WidgetType, WidgetDefinition>> = {
   alerts: define('alerts', AlertsWidget, AlertsConfigForm),
   source_health: define('source_health', SourceHealthWidget, SourceHealthConfigForm),
   stats: define('stats', StatsWidget, StatsConfigForm),
-  // custom_api lands in Phase 6.
+  custom_api: define('custom_api', CustomApiWidget, CustomApiConfigForm),
 };
 
 export function widgetDefinition(type: WidgetType): WidgetDefinition | undefined {

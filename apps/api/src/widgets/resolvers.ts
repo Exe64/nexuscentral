@@ -13,6 +13,8 @@ import {
   parseWidgetConfig,
   type AlertsWidgetConfig,
   type AlertsWidgetData,
+  type CustomApiWidgetConfig,
+  type CustomApiWidgetData,
   type FeedWidgetConfig,
   type FeedWidgetData,
   type SourceHealthWidgetConfig,
@@ -22,12 +24,14 @@ import {
   type Widget,
   type WidgetType,
 } from '@nexuscentral/shared';
+import { customApiCacheKey, throughCustomApiCache } from '../customapi/cache.js';
+import { fetchSpec } from '../customapi/fetch.js';
+import { applyMapping } from '../customapi/mapping.js';
 import { alertCounts, listAlerts, topSourcesByVolume } from '../db/alerts.js';
 import { countItems, itemStats, listItems } from '../db/items.js';
 import { listSources, listUnhealthySources, sourceHealthCounts } from '../db/sources.js';
 import { getRawSettings, resolveRedditCredentials } from '../db/settings.js';
 import { redditBudget } from '../adapters/reddit/budget.js';
-import { HttpError } from '../http/errors.js';
 
 export type WidgetResolver = (widget: Widget) => Promise<unknown>;
 
@@ -111,11 +115,32 @@ const resolveStats: WidgetResolver = async (widget) => {
   } satisfies StatsWidgetData;
 };
 
-const resolveCustomApi: WidgetResolver = () => {
-  // Phase 6. Reported as a widget-level error so the rest of the dashboard renders.
-  return Promise.reject(
-    HttpError.validation('custom_api widgets are not supported by this build yet.'),
+/**
+ * `custom_api` -- fetch a third-party endpoint and map it.
+ *
+ * Cached separately from the dashboard-wide widget cache: that one is keyed on
+ * the last ingestion, which has nothing to do with when a weather API last
+ * changed. This honours the widget's own `ttlMinutes`.
+ */
+const resolveCustomApi: WidgetResolver = async (widget) => {
+  const config = parseWidgetConfig('custom_api', widget.config) as unknown as CustomApiWidgetConfig;
+
+  const spec = { url: config.url, params: config.params, headers: config.headers };
+
+  const outcome = await throughCustomApiCache(
+    customApiCacheKey(spec, config.mapping),
+    config.ttlMinutes * 60_000,
+    async () => {
+      const response = await fetchSpec(spec);
+      return applyMapping(response.body, config.mapping);
+    },
   );
+
+  return {
+    items: outcome.items,
+    total: outcome.matched,
+    render: config.render,
+  } satisfies CustomApiWidgetData;
 };
 
 export const WIDGET_RESOLVERS: Record<WidgetType, WidgetResolver> = {

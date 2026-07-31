@@ -14,6 +14,7 @@ import { healthRouter } from './routes/health.js';
 import { authRouter } from './routes/auth.js';
 import { attachSession, requireAuth } from './middleware/auth.js';
 import { alertsRouter } from './routes/alerts.js';
+import { customApiRouter } from './routes/custom-api.js';
 import { dashboardsRouter } from './routes/dashboards.js';
 import { itemsRouter } from './routes/items.js';
 import { rulesRouter } from './routes/rules.js';
@@ -82,6 +83,7 @@ export function createApp(): Express {
   app.use('/api', rulesRouter);
   app.use('/api', dashboardsRouter);
   app.use('/api', alertsRouter);
+  app.use('/api', customApiRouter);
   app.use('/api', itemsRouter);
 
   app.use(notFoundHandler);

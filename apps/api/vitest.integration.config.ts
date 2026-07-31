@@ -20,6 +20,12 @@ export default defineConfig({
       NODE_ENV: 'test',
       LOG_LEVEL: 'silent',
       WORKER_ENABLED: 'false',
+      // The custom_api test target listens on loopback, which the SSRF guard
+      // exists to block. The guard is proven two other ways: exhaustively in
+      // test/customapi/ssrf.test.ts with DNS mocked, and end to end against the
+      // built image with this unset -- see the Phase 6 e2e run. Setting it here
+      // is what lets the mapping and caching be tested at all.
+      ALLOW_PRIVATE_TARGETS: 'true',
       DATABASE_URL: INTEGRATION_DATABASE_URL,
     },
   },

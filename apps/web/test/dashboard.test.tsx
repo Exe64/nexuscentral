@@ -225,7 +225,7 @@ describe('editing a dashboard', () => {
     });
   });
 
-  it('does not offer a widget type this build cannot render', async () => {
+  it('offers custom_api now that this build can render it', async () => {
     stubApi({
       'GET /api/dashboards': DASHBOARDS,
       'GET /api/dashboards/1': structure,
@@ -239,9 +239,10 @@ describe('editing a dashboard', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Edit layout' }));
     await userEvent.click(screen.getByRole('button', { name: 'Add widget' }));
 
-    // custom_api arrives in Phase 6; offering it now would add a widget that
-    // renders as "this build cannot render a custom_api widget".
-    expect(within(screen.getByRole('dialog')).queryByText(/Custom API/)).toBeNull();
+    // It was withheld until Phase 6 on purpose: offering a type the client
+    // cannot render would let a user add a widget that only ever shows an error.
+    // The list still comes from the client registry, not from the server.
+    expect(within(screen.getByRole('dialog')).getByText(/Custom API/)).toBeDefined();
   });
 
   it('saves a config change through PATCH /api/widgets/:id', async () => {

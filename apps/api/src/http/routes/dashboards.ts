@@ -13,6 +13,7 @@ import {
   type DashboardData,
   type Widget,
   type WidgetPayload,
+  type WidgetType,
 } from '@nexuscentral/shared';
 import {
   createDashboard,
@@ -202,17 +203,32 @@ async function resolveWidgets(widgets: readonly Widget[]): Promise<DashboardData
   };
 }
 
+/**
+ * Rules a schema default cannot express.
+ *
+ * `custom_api` needs a URL, but its schema defaults it to empty so the config
+ * form and `GET /api/widget-types` can seed themselves from `{}`. Saving one
+ * without a URL would produce a widget that can only ever render an error.
+ */
+function requireUsableConfig(type: WidgetType, config: Record<string, unknown>): void {
+  if (type !== 'custom_api') return;
+
+  const url = typeof config.url === 'string' ? config.url.trim() : '';
+  if (url === '') {
+    throw HttpError.validation('A custom API widget needs a URL.', {
+      url: ['Required'],
+    });
+  }
+}
+
 // --- widgets ---------------------------------------------------------------
 
 dashboardsRouter.post('/widgets', async (req, res) => {
   const body = parseBody(widgetCreateSchema, req);
 
-  if (!AVAILABLE_WIDGET_TYPES.includes(body.type)) {
-    throw HttpError.validation(`${body.type} widgets are not supported by this build yet.`);
-  }
-
   // Rejected here rather than discovered at render time.
   const config = parseWidgetConfig(body.type, body.config);
+  requireUsableConfig(body.type, config);
 
   const geometry = WIDGET_GEOMETRY[body.type];
   const layout =
@@ -252,6 +268,7 @@ dashboardsRouter.patch('/widgets/:id', async (req, res) => {
   if (body.config !== undefined) {
     // Validated against the widget's own type, not whatever the body claims.
     patch.config = parseWidgetConfig(existing.type, body.config);
+    requireUsableConfig(existing.type, patch.config);
   }
 
   const widget = await updateWidget(id, patch);
