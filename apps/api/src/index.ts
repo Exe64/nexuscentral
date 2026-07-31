@@ -6,16 +6,18 @@
 import type { Server } from 'node:http';
 import { closePool } from './db/pool.js';
 import { env, isProduction } from './config/env.js';
+import { bootstrapCredential } from './auth/credential.js';
+import { pruneExpiredSessions } from './auth/sessions.js';
 import { createApp } from './http/app.js';
 import { logger } from './logger.js';
 import { VERSION } from './version.js';
+import { seedIfEmpty } from './seed.js';
 import { startWorker, stopWorker } from './worker/index.js';
 
 /**
- * The app ships with no authentication of its own and expects Nginx in front of
- * it (00-CONTEXT.md 5). Binding to every interface without a configured proxy
- * hop count means either the API is directly exposed, or client IPs are wrong.
- * Both are worth a loud line in the log.
+ * Binding to every interface without a configured proxy hop count means client
+ * IPs are wrong -- and the login rate limiter counts per IP, so getting this
+ * wrong turns a per-address limit into a single global bucket.
  */
 function warnIfPubliclyBound(): void {
   const wildcard = env.BIND_ADDR === '0.0.0.0' || env.BIND_ADDR === '::';
@@ -23,9 +25,33 @@ function warnIfPubliclyBound(): void {
     logger.warn(
       { bindAddr: env.BIND_ADDR },
       'API is bound to all interfaces with TRUST_PROXY unset. ' +
-        'This app has no authentication of its own -- put it behind a reverse ' +
-        'proxy that authenticates, and set TRUST_PROXY to the number of hops.',
+        'Client IPs will be the proxy address, which collapses the per-IP login ' +
+        'rate limit into one bucket. Set TRUST_PROXY to the number of hops.',
     );
+  }
+}
+
+/**
+ * Refuse to serve without a password.
+ *
+ * The alternative -- start anyway and show a setup screen -- leaves a window in
+ * which whoever loads the page first owns the instance. Exiting is louder and has
+ * no such window.
+ */
+async function ensureCredential(): Promise<void> {
+  const outcome = await bootstrapCredential();
+
+  if (outcome.state === 'missing') {
+    logger.fatal(
+      'No password is configured and AUTH_PASSWORD is not set. ' +
+        'Set AUTH_PASSWORD in .env to the password you want, start once, then remove it.',
+    );
+    process.exit(1);
+  }
+
+  if (outcome.state === 'rejected') {
+    logger.fatal({ reason: outcome.reason }, 'AUTH_PASSWORD was rejected');
+    process.exit(1);
   }
 }
 
@@ -78,8 +104,11 @@ function installShutdownHandlers(server: Server): void {
   });
 }
 
-function main(): void {
+async function main(): Promise<void> {
   warnIfPubliclyBound();
+
+  // Before `listen`: an instance with no credential must never accept a request.
+  await ensureCredential();
 
   const app = createApp();
   const server = app.listen(env.PORT, env.BIND_ADDR, () => {
@@ -91,8 +120,24 @@ function main(): void {
         nodeEnv: env.NODE_ENV,
         workerEnabled: env.WORKER_ENABLED,
       },
-      'feedhub API listening',
+      'nexuscentral API listening',
     );
+
+    // First boot creates the Home dashboard. Failing here must not stop the
+    // API serving: an empty dashboard list is a recoverable state.
+    void seedIfEmpty().catch((err: unknown) => {
+      logger.error({ err }, 'Could not seed the initial dashboard');
+    });
+
+    // Sessions expire on read, but a session nobody ever comes back for would sit
+    // in the table forever. One sweep at boot is enough at this scale.
+    void pruneExpiredSessions()
+      .then((n) => {
+        if (n > 0) logger.info({ pruned: n }, 'Swept expired sessions');
+      })
+      .catch((err: unknown) => {
+        logger.error({ err }, 'Could not sweep expired sessions');
+      });
 
     if (env.WORKER_ENABLED) {
       // Started after the server is listening: a worker that cannot reach
@@ -127,4 +172,7 @@ function safeDbHost(connectionString: string): string {
   }
 }
 
-main();
+main().catch((err: unknown) => {
+  logger.fatal({ err }, 'Failed to start');
+  process.exit(1);
+});

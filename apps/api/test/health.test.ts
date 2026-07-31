@@ -39,12 +39,16 @@ describe('GET /api/health when the database is unreachable', () => {
 });
 
 describe('error shape', () => {
-  it('returns the single error envelope for an unknown route', async () => {
+  it('answers 401, not 404, for an unknown route when signed out', async () => {
     const res = await request(app).get('/api/does-not-exist');
 
-    expect(res.status).toBe(404);
+    // The gate sits in front of the not-found handler on purpose: answering 404
+    // here would let anyone map which routes exist by watching for the one that
+    // comes back 401 instead. The 404 envelope itself is checked in the
+    // integration suite, where the caller has a session.
+    expect(res.status).toBe(401);
     expect(res.body).toEqual({
-      error: { code: 'NOT_FOUND', message: 'GET /api/does-not-exist not found' },
+      error: { code: 'UNAUTHORIZED', message: 'Authentication required.' },
     });
   });
 

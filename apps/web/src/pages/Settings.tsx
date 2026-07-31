@@ -9,9 +9,10 @@
  */
 
 import { useState, type ReactNode } from 'react';
-import type { Settings as SettingsShape } from '@feedhub/shared';
+import type { Settings as SettingsShape } from '@nexuscentral/shared';
 import { useSettings, useTestNitter, useTestReddit, useUpdateSettings } from '../api/queries.ts';
 import { AppearancePanel } from '../components/AppearancePanel.tsx';
+import { SecurityPanel } from '../components/SecurityPanel.tsx';
 import { useT, type Translate } from '../i18n.tsx';
 
 function RedditPanel({ settings, t }: { settings: SettingsShape; t: Translate }): ReactNode {
@@ -249,6 +250,7 @@ export function Settings(): ReactNode {
   return (
     <div className="space-y-8">
       <AppearancePanel />
+      <SecurityPanel />
       <RedditPanel settings={settings.data} t={t} />
       <NitterPanel settings={settings.data} t={t} />
       <RetentionPanel settings={settings.data} t={t} />

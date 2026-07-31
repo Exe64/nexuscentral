@@ -3,7 +3,7 @@
  */
 
 import type { PoolClient } from 'pg';
-import type { ConditionalState, Source, SourceKind, Tag, TagColor } from '@feedhub/shared';
+import type { ConditionalState, Source, SourceKind, Tag, TagColor } from '@nexuscentral/shared';
 import { query, transaction } from './pool.js';
 import { formatPollInterval } from '../lib/interval.js';
 import { HttpError } from '../http/errors.js';

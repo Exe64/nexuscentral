@@ -141,7 +141,7 @@ export interface OpmlExportSource {
  * can carry several tags, and a folder hierarchy can only express one. The
  * importer above reads both forms, so this still round-trips.
  */
-export function buildOpml(sources: readonly OpmlExportSource[], title = 'feedhub'): string {
+export function buildOpml(sources: readonly OpmlExportSource[], title = 'nexuscentral'): string {
   const outlines = sources
     .map((source) => {
       const attributes = [

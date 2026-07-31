@@ -1,6 +1,5 @@
 import { afterAll, afterEach, beforeEach, describe, expect, it } from 'vitest';
-import request from 'supertest';
-import { app, closeDatabase, resetDatabase, scalar } from './helpers.js';
+import { agent, closeDatabase, resetDatabase, scalar } from './helpers.js';
 import { fixture } from '../helpers/fixtures.js';
 import { stubFetch } from '../helpers/stub-fetch.js';
 import { query } from '../../src/db/pool.js';
@@ -47,14 +46,14 @@ afterEach(() => {
 afterAll(closeDatabase);
 
 async function configureReddit(): Promise<void> {
-  const res = await request(app)
+  const res = await agent
     .patch('/api/settings')
     .send({ redditClientId: 'client-abc', redditClientSecret: 'secret-xyz' });
   if (res.status !== 200) throw new Error(`Configuring Reddit failed: ${JSON.stringify(res.body)}`);
 }
 
 async function configureNitter(urls: string[]): Promise<void> {
-  const res = await request(app).patch('/api/settings').send({ nitterBaseUrls: urls });
+  const res = await agent.patch('/api/settings').send({ nitterBaseUrls: urls });
   if (res.status !== 200) throw new Error(`Configuring Nitter failed: ${JSON.stringify(res.body)}`);
 }
 
@@ -62,7 +61,7 @@ describe('GET /api/settings', () => {
   it('never returns the secret, only whether one is configured', async () => {
     await configureReddit();
 
-    const res = await request(app).get('/api/settings');
+    const res = await agent.get('/api/settings');
 
     expect(res.status).toBe(200);
     expect(res.body.data.reddit).toEqual({
@@ -76,19 +75,19 @@ describe('GET /api/settings', () => {
   });
 
   it('reports Reddit as unconfigured when nothing is set', async () => {
-    const res = await request(app).get('/api/settings');
+    const res = await agent.get('/api/settings');
     expect(res.body.data.reddit).toMatchObject({ configured: false, origin: null });
   });
 
   it('reports where the Nitter list came from', async () => {
     // Nothing saved: the environment default applies, which is empty in tests.
-    const before = await request(app).get('/api/settings');
+    const before = await agent.get('/api/settings');
     expect(before.body.data.nitterBaseUrlsOrigin).toBe('env');
     expect(before.body.data.nitterBaseUrls).toEqual([]);
 
     await configureNitter([PRIMARY]);
 
-    const after = await request(app).get('/api/settings');
+    const after = await agent.get('/api/settings');
     expect(after.body.data.nitterBaseUrlsOrigin).toBe('settings');
     expect(after.body.data.nitterBaseUrls).toEqual([PRIMARY]);
   });
@@ -97,50 +96,46 @@ describe('GET /api/settings', () => {
 describe('PATCH /api/settings', () => {
   it('leaves a stored secret alone when the field is absent', async () => {
     await configureReddit();
-    await request(app).patch('/api/settings').send({ itemsRetentionDays: 30 });
+    await agent.patch('/api/settings').send({ itemsRetentionDays: 30 });
 
     expect(await scalar<string>(`SELECT reddit_client_secret FROM settings`)).toBe('secret-xyz');
   });
 
   it('clears a secret when an explicit null is sent', async () => {
     await configureReddit();
-    await request(app)
-      .patch('/api/settings')
-      .send({ redditClientId: null, redditClientSecret: null });
+    await agent.patch('/api/settings').send({ redditClientId: null, redditClientSecret: null });
 
     expect(await scalar<string | null>(`SELECT reddit_client_secret FROM settings`)).toBeNull();
-    expect((await request(app).get('/api/settings')).body.data.reddit.configured).toBe(false);
+    expect((await agent.get('/api/settings')).body.data.reddit.configured).toBe(false);
   });
 
   it('treats an empty string as a clear, so a blanked field is not stored', async () => {
     await configureReddit();
-    await request(app).patch('/api/settings').send({ redditClientSecret: '   ' });
+    await agent.patch('/api/settings').send({ redditClientSecret: '   ' });
 
     expect(await scalar<string | null>(`SELECT reddit_client_secret FROM settings`)).toBeNull();
   });
 
   it('rejects a delivery target with no webhook URL', async () => {
-    const res = await request(app).patch('/api/settings').send({ alertWebhookKind: 'ntfy' });
+    const res = await agent.patch('/api/settings').send({ alertWebhookKind: 'ntfy' });
 
     expect(res.status).toBe(400);
     expect(res.body.error.details).toHaveProperty('alertWebhookUrl');
   });
 
   it('rejects a non-absolute Nitter URL', async () => {
-    const res = await request(app)
-      .patch('/api/settings')
-      .send({ nitterBaseUrls: ['not-a-url'] });
+    const res = await agent.patch('/api/settings').send({ nitterBaseUrls: ['not-a-url'] });
     expect(res.status).toBe(400);
   });
 
   it('rejects an empty patch', async () => {
-    expect((await request(app).patch('/api/settings').send({})).status).toBe(400);
+    expect((await agent.patch('/api/settings').send({})).status).toBe(400);
   });
 });
 
 describe('POST /api/settings/test-reddit', () => {
   it('answers 200 with ok:false when nothing is configured', async () => {
-    const res = await request(app).post('/api/settings/test-reddit');
+    const res = await agent.post('/api/settings/test-reddit');
 
     // "Are these credentials good?" was answered successfully. The answer is no.
     expect(res.status).toBe(200);
@@ -151,11 +146,14 @@ describe('POST /api/settings/test-reddit', () => {
     await configureReddit();
     const stub = stubFetch({
       ...TOKEN_ROUTE,
-      [`${OAUTH_BASE}/api/v1/me?raw_json=1`]: { body: '{"name":"feedhub"}', headers: RATE_HEADERS },
+      [`${OAUTH_BASE}/api/v1/me?raw_json=1`]: {
+        body: '{"name":"nexuscentral"}',
+        headers: RATE_HEADERS,
+      },
     });
     restore = stub.restore;
 
-    const res = await request(app).post('/api/settings/test-reddit');
+    const res = await agent.post('/api/settings/test-reddit');
 
     expect(res.body.data).toMatchObject({ ok: true, origin: 'settings' });
     expect(res.body.data.budget).toMatchObject({ remaining: 596, limit: 600 });
@@ -168,7 +166,7 @@ describe('POST /api/settings/test-reddit', () => {
       [TOKEN_URL]: { status: 401, body: '{"error":"invalid_client"}', headers: JSON_HEADERS },
     });
     restore = rejected.restore;
-    const bad = await request(app).post('/api/settings/test-reddit');
+    const bad = await agent.post('/api/settings/test-reddit');
     expect(bad.body.data).toMatchObject({ ok: false, reason: 'rejected' });
     rejected.restore();
 
@@ -178,7 +176,7 @@ describe('POST /api/settings/test-reddit', () => {
     });
     restore = broken.restore;
     redditTokenCache.invalidate();
-    const down = await request(app).post('/api/settings/test-reddit');
+    const down = await agent.post('/api/settings/test-reddit');
     expect(down.body.data).toMatchObject({ ok: false, reason: 'upstream' });
   });
 });
@@ -192,7 +190,7 @@ describe('POST /api/settings/test-nitter', () => {
     });
     restore = stub.restore;
 
-    const res = await request(app).post('/api/settings/test-nitter');
+    const res = await agent.post('/api/settings/test-nitter');
 
     expect(res.body.data.ok).toBe(true);
     expect(res.body.data.instances).toHaveLength(2);
@@ -202,7 +200,7 @@ describe('POST /api/settings/test-nitter', () => {
   });
 
   it('reports not_configured with no instances', async () => {
-    const res = await request(app).post('/api/settings/test-nitter');
+    const res = await agent.post('/api/settings/test-nitter');
     expect(res.body.data).toMatchObject({ ok: false, reason: 'not_configured', instances: [] });
   });
 });
@@ -211,7 +209,7 @@ describe('creating a source of a kind that cannot be polled yet', () => {
   it('creates a Reddit source inactive and records why', async () => {
     // The acceptance criterion: with credentials absent, Reddit sources are
     // created inactive and the UI can explain it.
-    const res = await request(app)
+    const res = await agent
       .post('/api/sources')
       .send({ kind: 'reddit', identifier: 'r/nutanix', title: 'r/nutanix' });
 
@@ -234,7 +232,7 @@ describe('creating a source of a kind that cannot be polled yet', () => {
     });
     restore = stub.restore;
 
-    const res = await request(app)
+    const res = await agent
       .post('/api/sources')
       .send({ kind: 'reddit', identifier: 'nutanix', title: 'r/nutanix' });
 
@@ -243,7 +241,7 @@ describe('creating a source of a kind that cannot be polled yet', () => {
   });
 
   it('creates an X source inactive with no Nitter instance', async () => {
-    const res = await request(app)
+    const res = await agent
       .post('/api/sources')
       .send({ kind: 'nitter', identifier: '@nutanix', title: '@nutanix' });
 
@@ -253,7 +251,7 @@ describe('creating a source of a kind that cannot be polled yet', () => {
   });
 
   it('explains the same thing when resolving instead of creating', async () => {
-    const res = await request(app).post('/api/sources/resolve').send({ input: 'r/nutanix' });
+    const res = await agent.post('/api/sources/resolve').send({ input: 'r/nutanix' });
 
     expect(res.status).toBe(400);
     expect(res.body.error.code).toBe('VALIDATION_FAILED');
@@ -264,7 +262,7 @@ describe('creating a source of a kind that cannot be polled yet', () => {
 describe('polling a Reddit source', () => {
   async function createRedditSource(): Promise<number> {
     await configureReddit();
-    const res = await request(app)
+    const res = await agent
       .post('/api/sources')
       .send({ kind: 'reddit', identifier: 'nutanix', title: 'r/nutanix' });
     return res.body.data.id as number;
@@ -285,7 +283,7 @@ describe('polling a Reddit source', () => {
 
     expect(outcome).toMatchObject({ status: 'ok', itemCount: 3, newCount: 3 });
 
-    const items = await request(app).get('/api/items');
+    const items = await agent.get('/api/items');
     expect(items.body.data).toHaveLength(3);
     expect(items.body.data[0].engagementScore).toBe(214);
     expect(items.body.data[0].source.kind).toBe('reddit');
@@ -335,9 +333,7 @@ describe('polling a Reddit source', () => {
     restore = stub.restore;
 
     const sourceId = await createRedditSource();
-    await request(app)
-      .patch('/api/settings')
-      .send({ redditClientId: null, redditClientSecret: null });
+    await agent.patch('/api/settings').send({ redditClientId: null, redditClientSecret: null });
 
     const outcome = await pollSource(sourceId);
 
@@ -375,7 +371,7 @@ describe('polling a Reddit source', () => {
 
     const ids: number[] = [];
     for (let index = 0; index < 20; index += 1) {
-      const res = await request(app)
+      const res = await agent
         .post('/api/sources')
         .send({ kind: 'reddit', identifier: `sub${index}`, title: `r/sub${index}` });
       ids.push(res.body.data.id as number);
@@ -395,7 +391,7 @@ describe('polling a Reddit source', () => {
 describe('polling an X source through Nitter', () => {
   async function createNitterSource(urls: string[]): Promise<number> {
     await configureNitter(urls);
-    const res = await request(app)
+    const res = await agent
       .post('/api/sources')
       .send({ kind: 'nitter', identifier: 'nutanix', title: '@nutanix' });
     if (res.status !== 201) throw new Error(JSON.stringify(res.body));
@@ -476,11 +472,11 @@ describe('polling an X source through Nitter', () => {
     // And it surfaces where the source_health widget reads from. A silently-empty
     // source has zero failures and looked healthy on every run, so it has to be
     // counted separately or the counter buys nothing.
-    const health = await request(app).get('/api/health');
+    const health = await agent.get('/api/health');
     expect(health.body.status).toBe('degraded');
     expect(health.body.sources).toMatchObject({ failing: 0, silentlyEmpty: 1 });
 
-    const unhealthy = await request(app).get('/api/sources?health=unhealthy');
+    const unhealthy = await agent.get('/api/sources?health=unhealthy');
     expect(unhealthy.body.data).toHaveLength(1);
     expect(unhealthy.body.data[0].health.consecutiveEmpty).toBe(3);
   });
@@ -528,7 +524,7 @@ describe('polling an X source through Nitter', () => {
     restore = stub.restore;
 
     const nitterId = await createNitterSource([PRIMARY]);
-    const rss = await request(app)
+    const rss = await agent
       .post('/api/sources')
       .send({ kind: 'rss', identifier: 'https://blog.example.com/feed.xml', title: 'Blog' });
 
@@ -544,7 +540,7 @@ describe('polling an X source through Nitter', () => {
 
 describe('GET /api/health', () => {
   it('reports source counts, the Reddit budget and queue depth', async () => {
-    const res = await request(app).get('/api/health');
+    const res = await agent.get('/api/health');
 
     expect(res.status).toBe(200);
     expect(res.body).toMatchObject({
@@ -561,12 +557,12 @@ describe('GET /api/health', () => {
     const stub = stubFetch({ 'https://dead.example.com/feed.xml': { status: 500, body: '' } });
     restore = stub.restore;
 
-    const source = await request(app)
+    const source = await agent
       .post('/api/sources')
       .send({ kind: 'rss', identifier: 'https://dead.example.com/feed.xml', title: 'Dead' });
     await pollSource(source.body.data.id as number);
 
-    const res = await request(app).get('/api/health');
+    const res = await agent.get('/api/health');
     expect(res.body.status).toBe('degraded');
     expect(res.body.sources).toMatchObject({ total: 1, failing: 1 });
     expect(res.body.lastPollAt).not.toBeNull();

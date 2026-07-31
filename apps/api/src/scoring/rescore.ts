@@ -14,7 +14,7 @@
  * hundreds of notifications about things already read (02-SPEC-ingestion.md 6).
  */
 
-import type { SourceKind } from '@feedhub/shared';
+import type { SourceKind } from '@nexuscentral/shared';
 import { query, transaction } from '../db/pool.js';
 import { activeRuleSpecs, deactivateRuleForTimeout, ruleWeightsById } from '../db/rules.js';
 import { logger } from '../logger.js';

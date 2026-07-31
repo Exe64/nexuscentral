@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import type { Logger, Source } from '@feedhub/shared';
+import type { Logger, Source } from '@nexuscentral/shared';
 
 const here = dirname(fileURLToPath(import.meta.url));
 

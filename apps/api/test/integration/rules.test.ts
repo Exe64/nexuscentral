@@ -1,6 +1,5 @@
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
-import request from 'supertest';
-import { app, closeDatabase, resetDatabase, scalar } from './helpers.js';
+import { agent, closeDatabase, resetDatabase, scalar } from './helpers.js';
 import { query } from '../../src/db/pool.js';
 import { rescoreRecent } from '../../src/scoring/rescore.js';
 
@@ -8,15 +7,13 @@ beforeEach(resetDatabase);
 afterAll(closeDatabase);
 
 async function seedItems(): Promise<{ sourceId: number; tagId: number }> {
-  const tag = await request(app).post('/api/tags').send({ name: 'Storage' });
-  const source = await request(app)
-    .post('/api/sources')
-    .send({
-      kind: 'rss',
-      identifier: 'https://blog.example.com/feed.xml',
-      title: 'Blog',
-      tagIds: [tag.body.data.id],
-    });
+  const tag = await agent.post('/api/tags').send({ name: 'Storage' });
+  const source = await agent.post('/api/sources').send({
+    kind: 'rss',
+    identifier: 'https://blog.example.com/feed.xml',
+    title: 'Blog',
+    tagIds: [tag.body.data.id],
+  });
   const sourceId: number = source.body.data.id;
 
   await query(
@@ -36,7 +33,7 @@ async function seedItems(): Promise<{ sourceId: number; tagId: number }> {
 
 describe('POST /api/rules', () => {
   it('creates a rule', async () => {
-    const res = await request(app).post('/api/rules').send({
+    const res = await agent.post('/api/rules').send({
       name: 'CVE mentions',
       pattern: 'CVE-\\d{4}',
       weight: 5,
@@ -58,7 +55,7 @@ describe('POST /api/rules', () => {
   });
 
   it('accepts a negative weight, which is how noise is demoted', async () => {
-    const res = await request(app)
+    const res = await agent
       .post('/api/rules')
       .send({ name: 'Press releases', pattern: 'press release', weight: -3 });
 
@@ -68,9 +65,7 @@ describe('POST /api/rules', () => {
 
   it('rejects a catastrophic-backtracking pattern with a message that says why', async () => {
     // The acceptance criterion.
-    const res = await request(app)
-      .post('/api/rules')
-      .send({ name: 'Bad', pattern: '(\\w+)+@example' });
+    const res = await agent.post('/api/rules').send({ name: 'Bad', pattern: '(\\w+)+@example' });
 
     expect(res.status).toBe(400);
     expect(res.body.error.code).toBe('VALIDATION_FAILED');
@@ -87,31 +82,27 @@ describe('POST /api/rules', () => {
     ['(a*)*', 'nested_quantifier'],
     ['(unclosed', 'invalid_syntax'],
   ])('rejects %s as %s', async (pattern, code) => {
-    const res = await request(app).post('/api/rules').send({ name: 'x', pattern });
+    const res = await agent.post('/api/rules').send({ name: 'x', pattern });
     expect(res.status).toBe(400);
     expect(res.body.error.details.code).toBe(code);
   });
 
   it('rejects a pattern over the length cap', async () => {
-    const res = await request(app)
-      .post('/api/rules')
-      .send({ name: 'x', pattern: 'a'.repeat(201) });
+    const res = await agent.post('/api/rules').send({ name: 'x', pattern: 'a'.repeat(201) });
 
     expect(res.status).toBe(400);
     expect(res.body.error.message).toMatch(/at most 200 characters/);
   });
 
   it('rejects a stateful flag', async () => {
-    const res = await request(app)
-      .post('/api/rules')
-      .send({ name: 'x', pattern: 'abc', flags: 'g' });
+    const res = await agent.post('/api/rules').send({ name: 'x', pattern: 'abc', flags: 'g' });
 
     expect(res.status).toBe(400);
     expect(res.body.error.details.code).toBe('invalid_flags');
   });
 
   it('rejects an unknown tag in the filter', async () => {
-    const res = await request(app)
+    const res = await agent
       .post('/api/rules')
       .send({ name: 'x', pattern: 'abc', tagFilter: [9999] });
 
@@ -125,7 +116,7 @@ describe('POST /api/rules/test', () => {
 
   it('reports match counts against real items before anything is saved', async () => {
     // Non-negotiable: without this, rules are written blind.
-    const res = await request(app)
+    const res = await agent
       .post('/api/rules/test')
       .send({ pattern: 'CVE-\\d{4}', flags: 'i', scope: 'both' });
 
@@ -142,7 +133,7 @@ describe('POST /api/rules/test', () => {
   });
 
   it('returns the offsets needed to highlight the match', async () => {
-    const res = await request(app).post('/api/rules/test').send({ pattern: 'CVE-\\d{4}' });
+    const res = await agent.post('/api/rules/test').send({ pattern: 'CVE-\\d{4}' });
 
     const { field, start, end } = res.body.matches[0].highlight;
     expect(field).toBe('title');
@@ -150,33 +141,33 @@ describe('POST /api/rules/test', () => {
   });
 
   it('highlights in the summary when the title does not match', async () => {
-    const res = await request(app).post('/api/rules/test').send({ pattern: 'cache ratio' });
+    const res = await agent.post('/api/rules/test').send({ pattern: 'cache ratio' });
 
     expect(res.body.matchCount).toBe(1);
     expect(res.body.matches[0].highlight.field).toBe('summary');
   });
 
   it('honours the scope', async () => {
-    const titleOnly = await request(app)
+    const titleOnly = await agent
       .post('/api/rules/test')
       .send({ pattern: 'cache ratio', scope: 'title' });
     expect(titleOnly.body.matchCount).toBe(0);
 
-    const authorOnly = await request(app)
+    const authorOnly = await agent
       .post('/api/rules/test')
       .send({ pattern: 'pr_bot', scope: 'author' });
     expect(authorOnly.body.matchCount).toBe(1);
   });
 
   it('honours a tag filter', async () => {
-    const tags = await request(app).get('/api/tags');
-    const matching = await request(app)
+    const tags = await agent.get('/api/tags');
+    const matching = await agent
       .post('/api/rules/test')
       .send({ pattern: 'Nutanix', tagFilter: [tags.body.data[0].id] });
     expect(matching.body.matchCount).toBe(1);
 
-    const other = await request(app).post('/api/tags').send({ name: 'Unused' });
-    const nonMatching = await request(app)
+    const other = await agent.post('/api/tags').send({ name: 'Unused' });
+    const nonMatching = await agent
       .post('/api/rules/test')
       .send({ pattern: 'Nutanix', tagFilter: [other.body.data.id] });
     expect(nonMatching.body.matchCount).toBe(0);
@@ -184,7 +175,7 @@ describe('POST /api/rules/test', () => {
 
   it('reports an unsafe pattern as data, not as an error', async () => {
     // The user is mid-edit; the panel has to keep working.
-    const res = await request(app).post('/api/rules/test').send({ pattern: '(\\w+)+' });
+    const res = await agent.post('/api/rules/test').send({ pattern: '(\\w+)+' });
 
     expect(res.status).toBe(200);
     expect(res.body.valid).toBe(false);
@@ -193,7 +184,7 @@ describe('POST /api/rules/test', () => {
 
   it('reports an incomplete pattern as data too', async () => {
     // Typing "CVE-(" is a normal intermediate state.
-    const res = await request(app).post('/api/rules/test').send({ pattern: 'CVE-(' });
+    const res = await agent.post('/api/rules/test').send({ pattern: 'CVE-(' });
 
     expect(res.status).toBe(200);
     expect(res.body.valid).toBe(false);
@@ -201,7 +192,7 @@ describe('POST /api/rules/test', () => {
 
   it('answers with an empty sample when there are no items', async () => {
     await resetDatabase();
-    const res = await request(app).post('/api/rules/test').send({ pattern: 'anything' });
+    const res = await agent.post('/api/rules/test').send({ pattern: 'anything' });
 
     expect(res.body).toMatchObject({ valid: true, matchCount: 0, sampleSize: 0, matches: [] });
   });
@@ -212,10 +203,8 @@ describe('rescoring', () => {
     const { sourceId } = await seedItems();
     await query(`UPDATE sources SET weight = 1.5 WHERE id = $1`, [sourceId]);
 
-    await request(app)
-      .post('/api/rules')
-      .send({ name: 'CVE mentions', pattern: 'CVE-\\d{4}', weight: 5 });
-    await request(app)
+    await agent.post('/api/rules').send({ name: 'CVE mentions', pattern: 'CVE-\\d{4}', weight: 5 });
+    await agent
       .post('/api/rules')
       .send({ name: 'Press releases', pattern: 'press release', weight: -3 });
 
@@ -238,7 +227,7 @@ describe('rescoring', () => {
 
   it('records which rules fired, so the breakdown can name them', async () => {
     await seedItems();
-    const rule = await request(app)
+    const rule = await agent
       .post('/api/rules')
       .send({ name: 'CVE mentions', pattern: 'CVE', weight: 5 });
 
@@ -258,7 +247,7 @@ describe('rescoring', () => {
 
   it('ignores an inactive rule', async () => {
     await seedItems();
-    await request(app)
+    await agent
       .post('/api/rules')
       .send({ name: 'CVE mentions', pattern: 'CVE', weight: 5, active: false });
 
@@ -269,13 +258,13 @@ describe('rescoring', () => {
 
   it('reconciles matched_rules after a rule is deleted', async () => {
     await seedItems();
-    const rule = await request(app)
+    const rule = await agent
       .post('/api/rules')
       .send({ name: 'CVE mentions', pattern: 'CVE', weight: 5 });
     await rescoreRecent();
     expect(await scalar<number>(`SELECT max(score) FROM items`)).toBeGreaterThan(5);
 
-    await request(app).delete(`/api/rules/${rule.body.data.id}`);
+    await agent.delete(`/api/rules/${rule.body.data.id}`);
     // The delete leaves matched_rules stale on purpose; the rescore reconciles it.
     await rescoreRecent();
 
@@ -300,7 +289,7 @@ describe('rescoring', () => {
        VALUES ($1, sha256('hang'), 'https://x/hang', $2, now())`,
       [sourceId, `${'a'.repeat(40)}b`],
     );
-    await request(app).post('/api/rules').send({ name: 'CVE mentions', pattern: 'CVE', weight: 5 });
+    await agent.post('/api/rules').send({ name: 'CVE mentions', pattern: 'CVE', weight: 5 });
 
     const startedAt = Date.now();
     const result = await rescoreRecent();
@@ -336,7 +325,7 @@ describe('rescoring', () => {
 
     await rescoreRecent();
 
-    const rules = await request(app).get('/api/rules');
+    const rules = await agent.get('/api/rules');
     expect(rules.body.data[0]).toMatchObject({ active: false });
     expect(rules.body.data[0].lastError).toMatch(/budget/i);
     expect(rules.body.data[0].lastErrorAt).not.toBeNull();
@@ -349,9 +338,7 @@ describe('rescoring', () => {
        RETURNING id`,
     );
 
-    const res = await request(app)
-      .patch(`/api/rules/${ruleId}`)
-      .send({ pattern: 'a+', active: true });
+    const res = await agent.patch(`/api/rules/${ruleId}`).send({ pattern: 'a+', active: true });
 
     expect(res.body.data).toMatchObject({ active: true, lastError: null, lastErrorAt: null });
   });
@@ -363,7 +350,7 @@ describe('rescoring', () => {
     // every row whose true timestamp fell in the truncated remainder. Two items
     // sharing a timestamp was enough to lose one, and only at a batch boundary --
     // invisible in any small test.
-    const source = await request(app).post('/api/sources').send({
+    const source = await agent.post('/api/sources').send({
       kind: 'rss',
       identifier: 'https://dup.example.com/feed.xml',
       title: 'Duplicates',
@@ -387,13 +374,11 @@ describe('rescoring', () => {
   }, 60_000);
 
   it('refuses an unsafe pattern on update as well as on create', async () => {
-    const created = await request(app)
+    const created = await agent
       .post('/api/rules')
       .send({ name: 'Fine', pattern: 'CVE', weight: 1 });
 
-    const res = await request(app)
-      .patch(`/api/rules/${created.body.data.id}`)
-      .send({ pattern: '(x+)+' });
+    const res = await agent.patch(`/api/rules/${created.body.data.id}`).send({ pattern: '(x+)+' });
 
     expect(res.status).toBe(400);
     expect(res.body.error.details.code).toBe('nested_quantifier');
@@ -405,13 +390,13 @@ describe('GET /api/items/:id breakdown', () => {
     // The acceptance criterion: the breakdown popover explains any item's score.
     const { sourceId } = await seedItems();
     await query(`UPDATE sources SET weight = 1.5 WHERE id = $1`, [sourceId]);
-    const rule = await request(app)
+    const rule = await agent
       .post('/api/rules')
       .send({ name: 'CVE mentions', pattern: 'CVE-\\d{4}', weight: 5 });
     await rescoreRecent();
 
     const itemId = await scalar<string>(`SELECT id FROM items WHERE title LIKE 'Nutanix%'`);
-    const res = await request(app).get(`/api/items/${itemId}`);
+    const res = await agent.get(`/api/items/${itemId}`);
 
     expect(res.status).toBe(200);
     expect(res.body.data.breakdown).toMatchObject({
@@ -432,8 +417,8 @@ describe('GET /api/items/:id breakdown', () => {
   });
 
   it('includes the engagement term for a Reddit item', async () => {
-    await request(app).patch('/api/settings').send({ nitterBaseUrls: [] });
-    const source = await request(app)
+    await agent.patch('/api/settings').send({ nitterBaseUrls: [] });
+    const source = await agent
       .post('/api/sources')
       .send({ kind: 'reddit', identifier: 'nutanix', title: 'r/nutanix' });
 
@@ -444,7 +429,7 @@ describe('GET /api/items/:id breakdown', () => {
     );
 
     const itemId = await scalar<string>(`SELECT id FROM items LIMIT 1`);
-    const res = await request(app).get(`/api/items/${itemId}`);
+    const res = await agent.get(`/api/items/${itemId}`);
 
     // min(2.0, log10(500) x 0.5) ~= 1.35
     expect(res.body.data.breakdown.engagement).toBeCloseTo(1.35, 2);
@@ -453,21 +438,21 @@ describe('GET /api/items/:id breakdown', () => {
   it('reports no rules rather than omitting the field', async () => {
     await seedItems();
     const itemId = await scalar<string>(`SELECT id FROM items LIMIT 1`);
-    const res = await request(app).get(`/api/items/${itemId}`);
+    const res = await agent.get(`/api/items/${itemId}`);
 
     expect(res.body.data.breakdown.rules).toEqual([]);
   });
 
   it('does not name a rule that has since been deleted', async () => {
     await seedItems();
-    const rule = await request(app)
+    const rule = await agent
       .post('/api/rules')
       .send({ name: 'Temporary', pattern: 'CVE', weight: 5 });
     await rescoreRecent();
-    await request(app).delete(`/api/rules/${rule.body.data.id}`);
+    await agent.delete(`/api/rules/${rule.body.data.id}`);
 
     const itemId = await scalar<string>(`SELECT id FROM items WHERE title LIKE 'Nutanix%'`);
-    const res = await request(app).get(`/api/items/${itemId}`);
+    const res = await agent.get(`/api/items/${itemId}`);
 
     // matched_rules is still stale until the rescore runs; the breakdown must not
     // invent a name for an id that no longer resolves.

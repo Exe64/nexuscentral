@@ -45,7 +45,7 @@ beforeEach(() => {
 describe('the no-flash guard', () => {
   it('is inline in index.html, before any stylesheet', () => {
     // A module import would resolve after the first paint. That frame is the flash.
-    const scriptAt = INDEX_HTML.indexOf('feedhub.theme');
+    const scriptAt = INDEX_HTML.indexOf('nexuscentral.theme');
     const moduleAt = INDEX_HTML.indexOf('src="/src/main.tsx"');
 
     expect(scriptAt).toBeGreaterThan(-1);

@@ -1,4 +1,4 @@
-# feedhub -- Docker Compose for a single-user self-hosted deployment.
+# nexuscentral -- Docker Compose for a single-user self-hosted deployment.
 #
 # Topology: the host Nginx terminates TLS and handles authentication, then
 # proxies everything to the `web` container. `web` serves the built SPA and
@@ -8,22 +8,26 @@
 #   docker compose up -d
 #   docker compose exec api pnpm migrate up
 
-name: feedhub
+name: nexuscentral
 
 services:
   postgres:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-feedhub}
+      POSTGRES_USER: ${POSTGRES_USER:-nexuscentral}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env}
-      POSTGRES_DB: ${POSTGRES_DB:-feedhub}
+      POSTGRES_DB: ${POSTGRES_DB:-nexuscentral}
       # Deterministic collation and encoding, independent of the host locale.
       POSTGRES_INITDB_ARGS: '--encoding=UTF8 --locale=C'
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-feedhub} -d ${POSTGRES_DB:-feedhub}']
+      test:
+        [
+          'CMD-SHELL',
+          'pg_isready -U ${POSTGRES_USER:-nexuscentral} -d ${POSTGRES_DB:-nexuscentral}',
+        ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -38,8 +42,12 @@ services:
       postgres:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgres://${POSTGRES_USER:-feedhub}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-feedhub}
+      DATABASE_URL: postgres://${POSTGRES_USER:-nexuscentral}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-nexuscentral}
       NODE_ENV: production
+      # Read once, on the first boot that finds no stored password. The API
+      # refuses to start when there is neither, so this has to reach the
+      # container -- an env var listed in .env but not here never does.
+      AUTH_PASSWORD: ${AUTH_PASSWORD:-}
       # Reachable from `web` over the Docker network only -- there is no ports
       # mapping below, so nothing on the host can connect directly.
       BIND_ADDR: 0.0.0.0
@@ -50,7 +58,7 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-info}
       REDDIT_CLIENT_ID: ${REDDIT_CLIENT_ID:-}
       REDDIT_CLIENT_SECRET: ${REDDIT_CLIENT_SECRET:-}
-      REDDIT_USER_AGENT: ${REDDIT_USER_AGENT:-feedhub/1.0 (self-hosted personal aggregator)}
+      REDDIT_USER_AGENT: ${REDDIT_USER_AGENT:-nexuscentral/1.0 (self-hosted personal aggregator)}
       NITTER_BASE_URLS: ${NITTER_BASE_URLS:-}
       ALLOW_PRIVATE_TARGETS: ${ALLOW_PRIVATE_TARGETS:-false}
 

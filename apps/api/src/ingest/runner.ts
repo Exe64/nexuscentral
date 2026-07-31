@@ -6,7 +6,7 @@
  * (02-SPEC-ingestion.md 1) -- that is what keeps them separable.
  */
 
-import type { FetchResult, Source } from '@feedhub/shared';
+import type { FetchResult, Source } from '@nexuscentral/shared';
 import { getAdapter } from '../adapters/registry.js';
 import { insertItems } from '../db/items.js';
 import {

@@ -1,6 +1,5 @@
 import { afterAll, afterEach, beforeEach, describe, expect, it } from 'vitest';
-import request from 'supertest';
-import { app, closeDatabase, resetDatabase, scalar } from './helpers.js';
+import { agent, closeDatabase, resetDatabase, scalar } from './helpers.js';
 import { fixture } from '../helpers/fixtures.js';
 import { stubFetch } from '../helpers/stub-fetch.js';
 
@@ -32,7 +31,7 @@ describe('POST /api/sources/resolve', () => {
     });
     restore = stub.restore;
 
-    const res = await request(app).post('/api/sources/resolve').send({ input: pageUrl });
+    const res = await agent.post('/api/sources/resolve').send({ input: pageUrl });
 
     expect(res.status).toBe(200);
     expect(res.body.candidates).toHaveLength(2);
@@ -58,11 +57,11 @@ describe('POST /api/sources/resolve', () => {
     });
     restore = stub.restore;
 
-    const created = await request(app)
+    const created = await agent
       .post('/api/sources')
       .send({ kind: 'rss', identifier: FEED_URL, title: 'Nutanix Blog' });
 
-    const res = await request(app).post('/api/sources/resolve').send({ input: FEED_URL });
+    const res = await agent.post('/api/sources/resolve').send({ input: FEED_URL });
 
     expect(res.body.candidates[0].existingSourceId).toBe(created.body.data.id);
   });
@@ -78,7 +77,7 @@ describe('POST /api/sources/resolve', () => {
     });
     restore = stub.restore;
 
-    const res = await request(app).post('/api/sources/resolve').send({ input: pageUrl });
+    const res = await agent.post('/api/sources/resolve').send({ input: pageUrl });
 
     expect(res.status).toBe(502);
     expect(res.body.error.code).toBe('UPSTREAM_FAILED');
@@ -86,40 +85,38 @@ describe('POST /api/sources/resolve', () => {
   });
 
   it('detects a subreddit and explains that the adapter is not in this build', async () => {
-    const res = await request(app).post('/api/sources/resolve').send({ input: 'r/nutanix' });
+    const res = await agent.post('/api/sources/resolve').send({ input: 'r/nutanix' });
 
     expect(res.status).toBe(400);
     expect(res.body.error.message).toMatch(/reddit/i);
   });
 
   it('detects an X handle rather than falling through to RSS', async () => {
-    const res = await request(app).post('/api/sources/resolve').send({ input: '@nutanix' });
+    const res = await agent.post('/api/sources/resolve').send({ input: '@nutanix' });
 
     expect(res.status).toBe(400);
     expect(res.body.error.message).toMatch(/nitter/i);
   });
 
   it('rejects an empty input', async () => {
-    const res = await request(app).post('/api/sources/resolve').send({ input: '   ' });
+    const res = await agent.post('/api/sources/resolve').send({ input: '   ' });
     expect(res.status).toBe(400);
   });
 });
 
 describe('POST /api/sources', () => {
   it('creates a source with tags and a normalised poll interval', async () => {
-    const tag = await request(app).post('/api/tags').send({ name: 'Storage' });
+    const tag = await agent.post('/api/tags').send({ name: 'Storage' });
 
-    const res = await request(app)
-      .post('/api/sources')
-      .send({
-        kind: 'rss',
-        identifier: FEED_URL,
-        title: 'Nutanix Blog',
-        siteUrl: 'https://www.nutanix.com/blog',
-        tagIds: [tag.body.data.id],
-        weight: 1.5,
-        pollInterval: '30 minutes',
-      });
+    const res = await agent.post('/api/sources').send({
+      kind: 'rss',
+      identifier: FEED_URL,
+      title: 'Nutanix Blog',
+      siteUrl: 'https://www.nutanix.com/blog',
+      tagIds: [tag.body.data.id],
+      weight: 1.5,
+      pollInterval: '30 minutes',
+    });
 
     expect(res.status).toBe(201);
     expect(res.body.data).toMatchObject({
@@ -139,7 +136,7 @@ describe('POST /api/sources', () => {
   });
 
   it('normalises a reddit identifier to a bare lowercase name', async () => {
-    const res = await request(app)
+    const res = await agent
       .post('/api/sources')
       .send({ kind: 'reddit', identifier: '/r/Nutanix', title: 'r/nutanix', active: false });
 
@@ -147,11 +144,11 @@ describe('POST /api/sources', () => {
   });
 
   it('reports a duplicate identity as 409 with the existing id', async () => {
-    const first = await request(app)
+    const first = await agent
       .post('/api/sources')
       .send({ kind: 'rss', identifier: FEED_URL, title: 'A' });
 
-    const second = await request(app)
+    const second = await agent
       .post('/api/sources')
       .send({ kind: 'rss', identifier: FEED_URL, title: 'B' });
 
@@ -160,7 +157,7 @@ describe('POST /api/sources', () => {
   });
 
   it('rejects unknown tag ids before touching a foreign key', async () => {
-    const res = await request(app)
+    const res = await agent
       .post('/api/sources')
       .send({ kind: 'rss', identifier: FEED_URL, title: 'A', tagIds: [9998, 9999] });
 
@@ -169,7 +166,7 @@ describe('POST /api/sources', () => {
   });
 
   it('refuses a poll interval that would hammer the source', async () => {
-    const res = await request(app)
+    const res = await agent
       .post('/api/sources')
       .send({ kind: 'rss', identifier: FEED_URL, title: 'A', pollInterval: '1 minute' });
 
@@ -178,7 +175,7 @@ describe('POST /api/sources', () => {
   });
 
   it('explains an unrecognised interval unit instead of guessing', async () => {
-    const res = await request(app)
+    const res = await agent
       .post('/api/sources')
       .send({ kind: 'rss', identifier: FEED_URL, title: 'A', pollInterval: '30 fortnights' });
 
@@ -189,21 +186,19 @@ describe('POST /api/sources', () => {
 
 describe('GET /api/sources', () => {
   beforeEach(async () => {
-    const storage = await request(app).post('/api/tags').send({ name: 'Storage' });
-    await request(app)
-      .post('/api/sources')
-      .send({
-        kind: 'rss',
-        identifier: 'https://a.example.com/feed.xml',
-        title: 'Alpha Blog',
-        tagIds: [storage.body.data.id],
-      });
-    await request(app).post('/api/sources').send({
+    const storage = await agent.post('/api/tags').send({ name: 'Storage' });
+    await agent.post('/api/sources').send({
+      kind: 'rss',
+      identifier: 'https://a.example.com/feed.xml',
+      title: 'Alpha Blog',
+      tagIds: [storage.body.data.id],
+    });
+    await agent.post('/api/sources').send({
       kind: 'rss',
       identifier: 'https://b.example.com/feed.xml',
       title: 'Beta Blog',
     });
-    await request(app).post('/api/sources').send({
+    await agent.post('/api/sources').send({
       kind: 'reddit',
       identifier: 'ceph',
       title: 'r/ceph',
@@ -212,7 +207,7 @@ describe('GET /api/sources', () => {
   });
 
   it('lists every source alphabetically with its tags denormalised', async () => {
-    const res = await request(app).get('/api/sources');
+    const res = await agent.get('/api/sources');
 
     expect(res.body.data.map((s: { title: string }) => s.title)).toEqual([
       'Alpha Blog',
@@ -223,37 +218,35 @@ describe('GET /api/sources', () => {
   });
 
   it('filters by kind, active flag, tag and free text', async () => {
-    const byKind = await request(app).get('/api/sources?kind=reddit');
+    const byKind = await agent.get('/api/sources?kind=reddit');
     expect(byKind.body.data).toHaveLength(1);
 
-    const byActive = await request(app).get('/api/sources?active=false');
+    const byActive = await agent.get('/api/sources?active=false');
     expect(byActive.body.data.map((s: { title: string }) => s.title)).toEqual(['r/ceph']);
 
-    const tags = await request(app).get('/api/tags');
-    const byTag = await request(app).get(`/api/sources?tag=${tags.body.data[0].id}`);
+    const tags = await agent.get('/api/tags');
+    const byTag = await agent.get(`/api/sources?tag=${tags.body.data[0].id}`);
     expect(byTag.body.data.map((s: { title: string }) => s.title)).toEqual(['Alpha Blog']);
 
     // Free text matches the identifier as well as the title.
-    const byUrl = await request(app).get('/api/sources?q=b.example.com');
+    const byUrl = await agent.get('/api/sources?q=b.example.com');
     expect(byUrl.body.data.map((s: { title: string }) => s.title)).toEqual(['Beta Blog']);
   });
 });
 
 describe('PATCH /api/sources/:id', () => {
   it('replaces the tag set rather than merging it', async () => {
-    const a = await request(app).post('/api/tags').send({ name: 'Alpha' });
-    const b = await request(app).post('/api/tags').send({ name: 'Beta' });
+    const a = await agent.post('/api/tags').send({ name: 'Alpha' });
+    const b = await agent.post('/api/tags').send({ name: 'Beta' });
 
-    const source = await request(app)
-      .post('/api/sources')
-      .send({
-        kind: 'rss',
-        identifier: FEED_URL,
-        title: 'A',
-        tagIds: [a.body.data.id],
-      });
+    const source = await agent.post('/api/sources').send({
+      kind: 'rss',
+      identifier: FEED_URL,
+      title: 'A',
+      tagIds: [a.body.data.id],
+    });
 
-    const res = await request(app)
+    const res = await agent
       .patch(`/api/sources/${source.body.data.id}`)
       .send({ tagIds: [b.body.data.id] });
 
@@ -261,7 +254,7 @@ describe('PATCH /api/sources/:id', () => {
   });
 
   it('clears the failure backoff when a source is re-activated', async () => {
-    const source = await request(app)
+    const source = await agent
       .post('/api/sources')
       .send({ kind: 'rss', identifier: FEED_URL, title: 'A' });
     const id: number = source.body.data.id;
@@ -273,7 +266,7 @@ describe('PATCH /api/sources/:id', () => {
       [id],
     );
 
-    const res = await request(app).patch(`/api/sources/${id}`).send({ active: true });
+    const res = await agent.patch(`/api/sources/${id}`).send({ active: true });
 
     // Without this, the source would immediately look overdue by a factor of 8.
     expect(res.body.data.health).toMatchObject({ consecutiveFailures: 0, lastError: null });
@@ -281,7 +274,7 @@ describe('PATCH /api/sources/:id', () => {
   });
 
   it('404s for an unknown source', async () => {
-    const res = await request(app).patch('/api/sources/9999').send({ title: 'Nope' });
+    const res = await agent.patch('/api/sources/9999').send({ title: 'Nope' });
     expect(res.status).toBe(404);
   });
 });
@@ -289,7 +282,7 @@ describe('PATCH /api/sources/:id', () => {
 describe('DELETE /api/sources/:id', () => {
   it('removes the source and its items', async () => {
     // Deleting a source removes its history -- that is intended.
-    const source = await request(app)
+    const source = await agent
       .post('/api/sources')
       .send({ kind: 'rss', identifier: FEED_URL, title: 'A' });
     const id: number = source.body.data.id;
@@ -303,7 +296,7 @@ describe('DELETE /api/sources/:id', () => {
     );
     expect(await scalar<number>(`SELECT count(*)::int FROM items`)).toBe(2);
 
-    const res = await request(app).delete(`/api/sources/${id}`);
+    const res = await agent.delete(`/api/sources/${id}`);
 
     expect(res.status).toBe(204);
     expect(await scalar<number>(`SELECT count(*)::int FROM items`)).toBe(0);
@@ -311,23 +304,23 @@ describe('DELETE /api/sources/:id', () => {
   });
 
   it('404s for an unknown source', async () => {
-    expect((await request(app).delete('/api/sources/9999')).status).toBe(404);
+    expect((await agent.delete('/api/sources/9999')).status).toBe(404);
   });
 });
 
 describe('POST /api/sources/:id/poll', () => {
   it('reports that nothing was queued when the worker is not running', async () => {
-    const source = await request(app)
+    const source = await agent
       .post('/api/sources')
       .send({ kind: 'rss', identifier: FEED_URL, title: 'A' });
 
-    const res = await request(app).post(`/api/sources/${source.body.data.id}/poll`);
+    const res = await agent.post(`/api/sources/${source.body.data.id}/poll`);
 
     expect(res.status).toBe(202);
     expect(res.body.data).toMatchObject({ queued: false });
   });
 
   it('404s for an unknown source', async () => {
-    expect((await request(app).post('/api/sources/9999/poll')).status).toBe(404);
+    expect((await agent.post('/api/sources/9999/poll')).status).toBe(404);
   });
 });

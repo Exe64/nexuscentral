@@ -8,7 +8,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import type { Item, ItemSort } from '@feedhub/shared';
+import type { Item, ItemSort } from '@nexuscentral/shared';
 import {
   useItems,
   useMarkAllRead,

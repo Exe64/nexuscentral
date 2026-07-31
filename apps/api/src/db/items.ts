@@ -6,7 +6,7 @@
  * (03-SPEC-api.md 4).
  */
 
-import type { Item, ItemSort, NormalizedItem, Source, SourceKind, Tag } from '@feedhub/shared';
+import type { Item, ItemSort, NormalizedItem, Source, SourceKind, Tag } from '@nexuscentral/shared';
 import { query } from './pool.js';
 import { tagsBySourceId } from './sources.js';
 import { contentHash } from '../lib/hash.js';
@@ -206,6 +206,22 @@ export async function listItems(
 
   const page = buildPage(rows, limit, (row) => ({ v: sort.cursorValue(row), id: row.id }));
   return { data: await hydrate(page.data), nextCursor: page.nextCursor };
+}
+
+/**
+ * How many items match a filter, ignoring pagination.
+ *
+ * The feed widget shows "15 of 240": a list with no total implies it is everything.
+ */
+export async function countItems(filters: ItemFilters = {}): Promise<number> {
+  const where = new WhereBuilder();
+  applyFilters(where, filters);
+
+  const { rows } = await query<{ n: number }>(
+    `SELECT count(*)::int AS n FROM items i ${where.sql}`,
+    where.params,
+  );
+  return rows[0]?.n ?? 0;
 }
 
 export async function getItem(id: string): Promise<Item | null> {

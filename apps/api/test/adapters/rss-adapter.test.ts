@@ -38,7 +38,9 @@ describe('RssAdapter.fetch', () => {
     await new RssAdapter().fetch(ctx().context);
 
     const [request] = stub.requests;
-    expect(request?.headers['user-agent']).toMatch(/^feedhub\/\d+\.\d+\.\d+ \(\+self-hosted\)$/);
+    expect(request?.headers['user-agent']).toMatch(
+      /^nexuscentral\/\d+\.\d+\.\d+ \(\+self-hosted\)$/,
+    );
     expect(request?.headers['accept']).toContain('application/rss+xml');
     expect(request?.headers['accept']).toContain('application/atom+xml');
   });

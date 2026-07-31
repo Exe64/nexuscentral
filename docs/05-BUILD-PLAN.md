@@ -151,7 +151,7 @@ with context.
 ## Environment variables
 
 ```
-DATABASE_URL=postgres://feedhub:…@postgres:5432/feedhub
+DATABASE_URL=postgres://nexuscentral:…@postgres:5432/nexuscentral
 BIND_ADDR=127.0.0.1
 PORT=3000
 NODE_ENV=production
@@ -160,7 +160,7 @@ LOG_LEVEL=info
 
 REDDIT_CLIENT_ID=
 REDDIT_CLIENT_SECRET=
-REDDIT_USER_AGENT=feedhub/1.0 (self-hosted personal aggregator)
+REDDIT_USER_AGENT=nexuscentral/1.0 (self-hosted personal aggregator)
 
 NITTER_BASE_URLS=https://nitter.mydomain.tld
 

@@ -4,7 +4,7 @@
 
 import { Router } from 'express';
 import { z } from 'zod';
-import { TAG_COLORS } from '@feedhub/shared';
+import { TAG_COLORS } from '@nexuscentral/shared';
 import { createTag, deleteTag, listTags, updateTag } from '../../db/tags.js';
 import { isSluggable } from '../../lib/slug.js';
 import { HttpError } from '../errors.js';

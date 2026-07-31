@@ -1,4 +1,4 @@
-# feedhub
+# nexuscentral
 
 A self-hosted, single-user information aggregation dashboard. It ingests RSS/Atom feeds,
 Reddit subreddits and (best-effort) X/Twitter accounts, normalises everything into one item
@@ -8,8 +8,8 @@ resizable widgets.
 Three jobs, in priority order: **read**, **filter and rank**, **alert**.
 
 - Zero recurring cost. No paid API tiers.
-- Single user. No registration, no roles — it sits behind Nginx basic auth or mTLS and ships
-  with no authentication of its own.
+- Single user. No registration, no roles — one password, a session cookie, and every API
+  route closed except the health check and the login itself.
 - Configuration lives in PostgreSQL and is managed through the UI, not in YAML files.
 
 The full specification is in `docs/` (`00-CONTEXT.md` through `05-BUILD-PLAN.md`). Read them
@@ -17,16 +17,19 @@ in that order; `05-BUILD-PLAN.md` defines the phase order and the acceptance cri
 
 ## Status
 
-**Phase 4 — theming and shell. Complete.**
+**Phase 5 — the dashboard grid. Complete.**
 
-Working today: the app shell with a sidebar, tag list and keyboard shortcuts; light and dark
-themes with a user-chosen accent; tags and sources CRUD with the resolve preview; RSS/Atom,
-Reddit and best-effort X (via Nitter) adapters; the `pg-boss` scheduler with per-source
-backoff; deduplication; deterministic weighted scoring with an explainable breakdown; rules
-with a live test panel; and OPML import and export.
+Working today: the dashboard grid with drag, resize and per-breakpoint layouts that survive a
+reload; `feed`, `alerts`, `source_health` and `stats` widgets; the app shell with a sidebar,
+tag list and keyboard shortcuts; light and dark themes with a user-chosen accent and five
+named palettes; tags and sources CRUD with the resolve preview; RSS/Atom, Reddit and
+best-effort X (via Nitter) adapters; the `pg-boss` scheduler with per-source backoff;
+deduplication; deterministic weighted scoring with an explainable breakdown; rules with a live
+test panel; and OPML import and export.
 
-Not yet built: the dashboard grid (Phase 5), alert delivery and `custom_api` widgets
-(Phase 6). A rule may be marked as alerting today; nothing is delivered until Phase 6.
+Not yet built: alert delivery and `custom_api` widgets (Phase 6); retention and full-text
+search in the reader (Phase 7). A rule may be marked as alerting today, and matches are listed
+by the `alerts` widget — but nothing is _delivered_ anywhere until Phase 6.
 
 ### Theming
 
@@ -78,6 +81,38 @@ Where this repository's token values differ from the ones written in the spec, a
 documented at the top of [tokens.css](apps/web/src/styles/tokens.css). In short: the spec
 states both literal values and a non-negotiable contrast floor, and measured across 12 hues
 the literal values do not meet the floor. The floor won.
+
+### Authentication
+
+One password, one user. This **reverses `00-CONTEXT.md` §5**, which had the app carry no
+login and sit behind the reverse proxy's basic auth. Basic auth has no logout, nothing to
+revoke, and re-sends the credential on every request; the application now authenticates for
+itself and the Traefik middleware is gone.
+
+- **scrypt**, from `node:crypto`. Not bcrypt or argon2: both mean a native module, a compiler
+  in the Docker build and a rebuild on every Node upgrade. The encoded hash carries its own
+  `N`, `r` and `p`, so raising the cost later is one line and old hashes keep verifying.
+- **Sessions** are 32 random bytes in an `httpOnly`, `Secure`, `SameSite=Strict` cookie. The
+  database stores only the SHA-256, so a dump of `sessions` yields nothing replayable — and
+  `SameSite=Strict` is what makes a CSRF token unnecessary for a cookie-authenticated API.
+  Thirty days, sliding, renewed past the halfway mark rather than on every request.
+- **Rate limiting** is two windows: five failures per IP and twenty globally, per fifteen
+  minutes. The global one exists because a distributed attempt never trips a per-IP counter,
+  and with one user a global lockout costs that user a wait and an attacker the whole attack.
+  It is stored in PostgreSQL, not in memory: a lockout a restart clears is not a lockout.
+- **Every route is closed** except `GET /api/health` and `/api/auth/*`. The gate is mounted
+  once, in front of the routers, so a router added later is protected by default. A test walks
+  the real Express router tree and asserts a 401 for each — a hand-written list would drift.
+- `/api/health` answers in two shapes: liveness only to anyone (the container healthcheck and
+  `deploy.sh` both run before login is possible), and source counts, Reddit budget and queue
+  depth only once authenticated. Those describe what the instance follows.
+
+Changing the password revokes every other session, because the usual reason to change it is
+that someone else has it. Changing it requires the current one even from an open session, so
+a borrowed session cannot lock the owner out.
+
+`TRUST_PROXY` matters more than it looks: the per-IP limit counts client addresses, and
+without it every request appears to come from the proxy.
 
 ### Keyboard
 
@@ -164,7 +199,7 @@ on it, and `GET /api/sources?health=unhealthy` lists the affected sources.
 
 ```bash
 pnpm test                                   # unit tests, no network, no database
-pnpm --filter @feedhub/api test:integration # against a real PostgreSQL
+pnpm --filter @nexuscentral/api test:integration # against a real PostgreSQL
 ```
 
 Integration tests need the dev database running and truncate every table between tests.
@@ -199,7 +234,7 @@ cp .env.example .env        # set POSTGRES_PASSWORD and DATABASE_URL
 # Run only the database in Docker; the app runs on the host.
 docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d postgres
 
-pnpm --filter @feedhub/api migrate up
+pnpm --filter @nexuscentral/api migrate up
 pnpm dev                    # API on :3000, Vite on :5173 proxying /api
 ```
 
@@ -209,27 +244,21 @@ on the VPS, and publishing the database there would undo a deployment constraint
 
 Useful commands:
 
-| Command                                   | Effect                                      |
-| ----------------------------------------- | ------------------------------------------- |
-| `pnpm build`                              | Build `shared`, then `api` and `web`        |
-| `pnpm typecheck`                          | `tsc` across every package, including tests |
-| `pnpm lint` / `pnpm format`               | ESLint / Prettier                           |
-| `pnpm test`                               | `vitest` across every package               |
-| `pnpm --filter @feedhub/api migrate up`   | Apply migrations                            |
-| `pnpm --filter @feedhub/api migrate down` | Roll back the last migration                |
+| Command                                        | Effect                                      |
+| ---------------------------------------------- | ------------------------------------------- |
+| `pnpm build`                                   | Build `shared`, then `api` and `web`        |
+| `pnpm typecheck`                               | `tsc` across every package, including tests |
+| `pnpm lint` / `pnpm format`                    | ESLint / Prettier                           |
+| `pnpm test`                                    | `vitest` across every package               |
+| `pnpm --filter @nexuscentral/api migrate up`   | Apply migrations                            |
+| `pnpm --filter @nexuscentral/api migrate down` | Roll back the last migration                |
 
 `migrate` reads `DATABASE_URL`. It resolves the migrations directory from `MIGRATIONS_DIR`,
 defaulting to `../../migrations` — the Docker image sets it to `/app/migrations`.
 
 ## Deployment
 
-Docker Compose on a VPS, behind an existing Nginx that terminates TLS and authenticates.
-
-```bash
-cp .env.example .env         # POSTGRES_PASSWORD is required
-docker compose up -d --build
-docker compose exec api pnpm migrate up
-```
+Docker Compose on the OVH VPS, behind the Traefik v3 that already owns 80/443 there.
 
 Topology:
 
@@ -238,13 +267,85 @@ Topology:
   `web` can reach it; there is no `ports:` mapping. Locally, outside Docker, `BIND_ADDR`
   defaults to `127.0.0.1`.
 - **`web`** — Nginx serving the built SPA and proxying `/api` to `api:3000`. Published on
-  `127.0.0.1:8080` by default, for the host Nginx to proxy to.
+  `127.0.0.1:8080`, and joined to the external `web_network` so Traefik can route to it.
 
 The API logs a startup warning when it is bound to all interfaces with `TRUST_PROXY` unset:
 that combination means either it is directly exposed or client IPs are wrong.
 
-Full deploy notes — host Nginx config with basic auth, backup and restore, Reddit app
-registration — land in Phase 7.
+### First deploy
+
+On the VPS, as the user that owns `/opt/apps`:
+
+```bash
+mkdir -p /opt/apps/nexuscentral && cd /opt/apps/nexuscentral
+# .env is untracked, so it survives every `git reset --hard` the deploy does.
+vi .env        # DOMAIN, TRAEFIK_CERTRESOLVER, POSTGRES_PASSWORD, AUTH_PASSWORD
+```
+
+`AUTH_PASSWORD` is needed **once**. The API stores it on the first boot that finds no
+password and refuses to serve without one, so `deploy.sh` checks the database for a
+credential and stops before building if there is neither. After the first sign-in, delete the
+line: the password lives in the database from then on, is changed from **Settings → Security**,
+and one left in `.env` ends up in every backup of `.env`.
+
+Then run the deploy from anywhere (it clones into `/opt/apps/nexuscentral` itself):
+
+```bash
+./deploy.sh
+```
+
+Same model as the other apps on that host: GitHub App token → fetch → build → dump → migrate
+→ health gate → prune. It refuses to start if `.env` is missing a required key, and it stops
+before migrating if the pre-deploy dump fails.
+
+| Flag            | Effect                                                            |
+| --------------- | ----------------------------------------------------------------- |
+| `--skip-backup` | Skip the pre-migration dump (a first deploy, or a throwaway host) |
+| `--no-build`    | Reuse the images already on the host                              |
+
+Ordering matters and is deliberate: PostgreSQL comes up **before the build** so the password
+check fails in seconds rather than after three minutes of compiling, the migration runs in a
+one-shot `run --rm` container, and only then does the application start. The API seeds the Home
+dashboard on first boot, and an API that starts before the migration finds no tables, logs the
+failure and never retries — so a first deploy in the other order comes up empty.
+
+Nothing is rolled back automatically. If the health gate fails, the script prints the recent
+API logs, the dump path and the exact rollback commands. Restoring after a migration discards
+anything written since the dump, which is a decision to take with the logs in front of you.
+
+### Backups
+
+`deploy.sh` dumps before every migration. For a daily dump, from cron:
+
+```
+0 4 * * * /opt/apps/nexuscentral/deploy/backup-db.sh >> /var/log/nexuscentral-backup.log 2>&1
+```
+
+Optional, all off by default and all configured in `.env`: AES256 encryption at rest
+(`NEXUSCENTRAL_BACKUP_PASSPHRASE_FILE`), an off-machine copy (`NEXUSCENTRAL_RCLONE_REMOTE` — a dump that
+only exists on the VPS does not survive losing the VPS), and a dead-man's-switch
+(`NEXUSCENTRAL_HEALTHCHECK_URL`) that alerts when backups stop running. Rotation keeps
+`NEXUSCENTRAL_BACKUP_KEEP` dumps, 14 by default.
+
+A dump that restores nothing is not a backup, so `backup-db.sh` rejects an empty or malformed
+dump rather than rotating a good one out for it, and the restore half ships too:
+
+```bash
+./deploy/restore-db.sh --check backups/nexuscentral_20260730-231351.sql.gz   # verify only
+./deploy/restore-db.sh backups/nexuscentral_20260730-231351.sql.gz           # drops and reloads
+```
+
+### Local check of the production images
+
+The compose stack builds and runs the same way locally, without Traefik:
+
+```bash
+docker compose build
+docker compose up -d postgres
+docker compose run --rm --no-deps api pnpm migrate up
+docker compose up -d
+curl -s http://127.0.0.1:8080/api/health
+```
 
 ## Environment
 

@@ -22,3 +22,7 @@ Thumbs.db
 
 # Local database volumes
 .data/
+
+# Database dumps. deploy.sh writes here on the VPS; they hold every item, source
+# and stored credential, so they must never reach the repository.
+backups/

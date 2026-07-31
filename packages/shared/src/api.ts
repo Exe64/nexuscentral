@@ -6,6 +6,8 @@
 
 export const ERROR_CODES = [
   'VALIDATION_FAILED',
+  /** No session, or one that has expired. The client's cue to show the login page. */
+  'UNAUTHORIZED',
   'NOT_FOUND',
   'CONFLICT',
   'UPSTREAM_FAILED',

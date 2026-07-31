@@ -7,7 +7,7 @@
  */
 
 import Parser from 'rss-parser';
-import type { NormalizedItem } from '@feedhub/shared';
+import type { NormalizedItem } from '@nexuscentral/shared';
 import { SUMMARY_MAX_LENGTH, toPlainTitle, toSummary } from '../../lib/text.js';
 
 /**

@@ -4,7 +4,7 @@
 
 import { Router } from 'express';
 import { z } from 'zod';
-import { SOURCE_KINDS, type ResolvedSource, type SourceKind } from '@feedhub/shared';
+import { SOURCE_KINDS, type ResolvedSource, type SourceKind } from '@nexuscentral/shared';
 import { detectKind, resolveInput } from '../../adapters/registry.js';
 import {
   createSource,
@@ -158,8 +158,8 @@ sourcesRouter.get('/sources/export', async (_req, res) => {
   );
 
   res.setHeader('Content-Type', 'text/x-opml+xml; charset=utf-8');
-  res.setHeader('Content-Disposition', 'attachment; filename="feedhub-sources.opml"');
-  res.setHeader('X-Feedhub-Skipped-Sources', String(sources.length - exportable.length));
+  res.setHeader('Content-Disposition', 'attachment; filename="nexuscentral-sources.opml"');
+  res.setHeader('X-Nexuscentral-Skipped-Sources', String(sources.length - exportable.length));
   res.send(opml);
 });
 

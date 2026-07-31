@@ -32,7 +32,7 @@ importers:
 
   apps/api:
     dependencies:
-      '@feedhub/shared':
+      '@nexuscentral/shared':
         specifier: workspace:*
         version: link:../../packages/shared
       dotenv:
@@ -93,7 +93,7 @@ importers:
 
   apps/web:
     dependencies:
-      '@feedhub/shared':
+      '@nexuscentral/shared':
         specifier: workspace:*
         version: link:../../packages/shared
       '@tanstack/react-query':
@@ -156,6 +156,10 @@ importers:
         version: 2.1.9(@types/node@22.20.1)(happy-dom@15.11.7)(lightningcss@1.32.0)
 
   packages/shared:
+    dependencies:
+      zod:
+        specifier: ^3.24.1
+        version: 3.25.76
     devDependencies:
       typescript:
         specifier: ^5.7.3

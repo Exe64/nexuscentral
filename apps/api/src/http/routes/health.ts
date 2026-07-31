@@ -6,6 +6,13 @@
  * other number a guess, so that case answers 503 rather than a cheerful 200.
  *
  * This backs the `source_health` widget, so it must stay cheap: it is polled.
+ *
+ * It is also the one detailed endpoint reachable without a session, because the
+ * container healthcheck and deploy.sh both need it before anyone can log in. So it
+ * answers in two shapes: `status`, `version` and database reachability to anyone,
+ * and the full picture -- source counts, Reddit budget, queue depth -- only to an
+ * authenticated caller. Those numbers describe what is being tracked, and that is
+ * not something to hand out at the door.
  */
 
 import { Router } from 'express';
@@ -22,13 +29,27 @@ import { VERSION } from '../../version.js';
 
 export const healthRouter: Router = Router();
 
-healthRouter.get('/health', async (_req, res) => {
+healthRouter.get('/health', async (req, res) => {
   if (!(await isReachable())) {
     res.status(503).json({
       status: 'error',
       version: VERSION,
       uptimeSeconds: Math.round(process.uptime()),
       db: { reachable: false },
+    });
+    return;
+  }
+
+  if (req.sessionId === undefined) {
+    // The unauthenticated shape: liveness only. `status` is deliberately not
+    // downgraded to `degraded` for failing sources here -- deploy.sh gates on this
+    // string, and a deploy must not be called a failure because one feed is down.
+    // Source health is an operational view, and it is one screen away once in.
+    res.json({
+      status: 'ok',
+      version: VERSION,
+      uptimeSeconds: Math.round(process.uptime()),
+      db: { reachable: true },
     });
     return;
   }

@@ -13,7 +13,7 @@ export default defineConfig({
       // exists only to satisfy env validation at import time. Integration tests
       // that need a real database read INTEGRATION_DATABASE_URL and skip
       // themselves when it is absent.
-      DATABASE_URL: 'postgres://feedhub:feedhub@127.0.0.1:5432/feedhub_test',
+      DATABASE_URL: 'postgres://nexuscentral:nexuscentral@127.0.0.1:5432/nexuscentral_test',
     },
   },
 });

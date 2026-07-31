@@ -5,7 +5,7 @@
  * unwrapping it belongs here rather than in every caller.
  */
 
-import type { ApiError, ErrorCode } from '@feedhub/shared';
+import type { ApiError, ErrorCode } from '@nexuscentral/shared';
 
 export class ApiRequestError extends Error {
   readonly code: ErrorCode | 'NETWORK';
@@ -34,6 +34,20 @@ export interface RequestOptions extends Omit<RequestInit, 'body'> {
   body?: unknown;
 }
 
+/**
+ * Called whenever the API answers 401.
+ *
+ * A session can expire under any request, not just the one the user is watching,
+ * so the reaction lives here rather than in each caller. `App` registers a
+ * handler that flips the whole shell back to the login screen.
+ */
+type UnauthorizedHandler = () => void;
+let onUnauthorized: UnauthorizedHandler | null = null;
+
+export function setUnauthorizedHandler(handler: UnauthorizedHandler | null): void {
+  onUnauthorized = handler;
+}
+
 export async function apiFetch<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const { body, headers, ...rest } = options;
 
@@ -57,6 +71,12 @@ export async function apiFetch<T>(path: string, options: RequestOptions = {}): P
 
   if (!response.ok) {
     if (isApiError(parsed)) {
+      // Notify before throwing: the caller's own error handling should run
+      // against a shell that already knows the session is gone. The login
+      // endpoint's own 401 ("Incorrect password") is not a lost session, so it
+      // does not count.
+      if (response.status === 401 && !path.startsWith('/auth/')) onUnauthorized?.();
+
       throw new ApiRequestError(
         parsed.error.code,
         parsed.error.message,

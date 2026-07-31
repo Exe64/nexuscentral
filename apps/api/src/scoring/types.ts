@@ -5,9 +5,9 @@
  * anything that reaches the environment, the logger or the database pool.
  */
 
-import type { RuleScope } from '@feedhub/shared';
+import type { RuleScope } from '@nexuscentral/shared';
 
-/** Re-exported so the worker can name the type without importing @feedhub/shared. */
+/** Re-exported so the worker can name the type without importing @nexuscentral/shared. */
 export type RuleScopeName = RuleScope;
 
 export interface RuleSpec {

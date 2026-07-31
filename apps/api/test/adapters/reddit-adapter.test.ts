@@ -18,7 +18,7 @@ const credentials = vi.hoisted(() => ({
   value: {
     clientId: 'client-abc',
     clientSecret: 'secret-xyz',
-    userAgent: 'feedhub/1.0 (self-hosted personal aggregator)',
+    userAgent: 'nexuscentral/1.0 (self-hosted personal aggregator)',
     origin: 'settings' as const,
   } as {
     clientId: string;
@@ -51,7 +51,7 @@ beforeEach(() => {
   credentials.value = {
     clientId: 'client-abc',
     clientSecret: 'secret-xyz',
-    userAgent: 'feedhub/1.0 (self-hosted personal aggregator)',
+    userAgent: 'nexuscentral/1.0 (self-hosted personal aggregator)',
     origin: 'settings',
   };
   // The token cache is a module singleton shared across tests.

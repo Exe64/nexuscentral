@@ -8,7 +8,7 @@
  * (decision D5).
  */
 
-import type { ScoreBreakdown, SourceKind } from '@feedhub/shared';
+import type { ScoreBreakdown, SourceKind } from '@nexuscentral/shared';
 
 export const BASE_SCORE = 1.0;
 

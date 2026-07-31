@@ -15,10 +15,10 @@ import {
   THEME_PRESETS,
   type ThemeMode,
   type ThemePreset,
-} from '@feedhub/shared';
+} from '@nexuscentral/shared';
 
 /** The same key the inline no-flash script in index.html reads. */
-export const STORAGE_KEY = 'feedhub.theme';
+export const STORAGE_KEY = 'nexuscentral.theme';
 
 /** The two chroma steps behind the "Muted / Vivid" control. */
 export const CHROMA_MUTED = 0.06;

@@ -1,6 +1,6 @@
 # 00 — CONTEXT
 
-**Project codename:** `feedhub`
+**Project codename:** `nexuscentral`
 **Audience for this document:** Claude Code (implementation agent)
 **Status:** specification complete, implementation not started
 

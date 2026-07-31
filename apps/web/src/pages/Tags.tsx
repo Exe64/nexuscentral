@@ -3,7 +3,7 @@
  */
 
 import { useState, type ReactNode } from 'react';
-import { TAG_COLORS, type TagColor, type TagWithCounts } from '@feedhub/shared';
+import { TAG_COLORS, type TagColor, type TagWithCounts } from '@nexuscentral/shared';
 import { useCreateTag, useDeleteTag, useTags, useUpdateTag } from '../api/queries.ts';
 import { ApiRequestError } from '../api/client.ts';
 import { useT, type Translate } from '../i18n.tsx';

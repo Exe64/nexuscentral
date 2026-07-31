@@ -7,7 +7,7 @@
 
 import { Router } from 'express';
 import { z } from 'zod';
-import { ITEM_SORTS, type ItemDetail } from '@feedhub/shared';
+import { ITEM_SORTS, type ItemDetail } from '@nexuscentral/shared';
 import { ruleWeightsById } from '../../db/rules.js';
 import { getSource } from '../../db/sources.js';
 import { computeScore } from '../../scoring/engine.js';

@@ -30,6 +30,15 @@ const schema = z.object({
   /** Number of reverse proxies in front of the API. Unset means "no proxy". */
   TRUST_PROXY: z.coerce.number().int().min(0).optional(),
 
+  /**
+   * Bootstrap password, read once on the first boot that finds no credential.
+   *
+   * Not validated for length here: `passwordProblem` owns that rule, and failing
+   * environment parsing would take the whole process down with a message that
+   * looks like a configuration error rather than a weak password.
+   */
+  AUTH_PASSWORD: z.string().optional(),
+
   WORKER_ENABLED: booleanish.default('true'),
 
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
@@ -37,7 +46,10 @@ const schema = z.object({
 
   REDDIT_CLIENT_ID: z.string().optional(),
   REDDIT_CLIENT_SECRET: z.string().optional(),
-  REDDIT_USER_AGENT: z.string().min(1).default('feedhub/1.0 (self-hosted personal aggregator)'),
+  REDDIT_USER_AGENT: z
+    .string()
+    .min(1)
+    .default('nexuscentral/1.0 (self-hosted personal aggregator)'),
 
   NITTER_BASE_URLS: csv.default(''),
 

@@ -161,7 +161,7 @@ attribute on change.
 ```html
 <script>
   (function () {
-    var s = JSON.parse(localStorage.getItem('feedhub.theme') || '{}');
+    var s = JSON.parse(localStorage.getItem('nexuscentral.theme') || '{}');
     var mode = s.mode || 'system';
     var dark =
       mode === 'dark' || (mode === 'system' && matchMedia('(prefers-color-scheme: dark)').matches);

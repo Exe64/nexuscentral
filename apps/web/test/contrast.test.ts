@@ -13,7 +13,7 @@
 import { describe, expect, it } from 'vitest';
 import { CONTRAST, contrastRatio, isOutOfGamut, type Oklch } from '../src/lib/oklch.ts';
 import { resolveTokens, type ThemeName } from './helpers/css-tokens.ts';
-import { TAG_COLORS } from '@feedhub/shared';
+import { TAG_COLORS } from '@nexuscentral/shared';
 
 /** Every 30 degrees, so yellows, greens and violets are all represented. */
 const HUES = Array.from({ length: 12 }, (_unused, index) => index * 30);

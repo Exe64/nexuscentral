@@ -1,5 +1,5 @@
 {
-  "name": "@feedhub/web",
+  "name": "@nexuscentral/web",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -12,7 +12,7 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@feedhub/shared": "workspace:*",
+    "@nexuscentral/shared": "workspace:*",
     "@tanstack/react-query": "^5.62.11",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",

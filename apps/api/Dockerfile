@@ -1,9 +1,9 @@
 # syntax=docker/dockerfile:1
 #
-# Build context is the repository root -- the API depends on @feedhub/shared and
+# Build context is the repository root -- the API depends on @nexuscentral/shared and
 # on the workspace lockfile.
 #
-#   docker build -f apps/api/Dockerfile -t feedhub-api .
+#   docker build -f apps/api/Dockerfile -t nexuscentral-api .
 
 # --- build -------------------------------------------------------------------
 FROM node:22-alpine AS build
@@ -16,13 +16,13 @@ COPY pnpm-workspace.yaml pnpm-lock.yaml package.json tsconfig.base.json ./
 COPY packages/shared/package.json packages/shared/
 COPY apps/api/package.json apps/api/
 
-RUN pnpm install --frozen-lockfile --filter '@feedhub/api...'
+RUN pnpm install --frozen-lockfile --filter '@nexuscentral/api...'
 
 COPY packages/shared packages/shared
 COPY apps/api apps/api
 
-RUN pnpm --filter @feedhub/shared build \
- && pnpm --filter @feedhub/api build
+RUN pnpm --filter @nexuscentral/shared build \
+ && pnpm --filter @nexuscentral/api build
 
 # --- runtime -----------------------------------------------------------------
 FROM node:22-alpine AS runtime
@@ -43,7 +43,7 @@ ENV MIGRATIONS_DIR=/app/migrations
 COPY pnpm-workspace.yaml pnpm-lock.yaml package.json ./
 COPY packages/shared/package.json packages/shared/
 COPY apps/api/package.json apps/api/
-RUN pnpm install --frozen-lockfile --prod --filter '@feedhub/api...' \
+RUN pnpm install --frozen-lockfile --prod --filter '@nexuscentral/api...' \
  && pnpm store prune
 
 COPY --from=build /app/packages/shared/dist packages/shared/dist

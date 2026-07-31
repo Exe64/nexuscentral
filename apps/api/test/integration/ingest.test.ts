@@ -1,6 +1,5 @@
 import { afterAll, afterEach, beforeEach, describe, expect, it } from 'vitest';
-import request from 'supertest';
-import { app, closeDatabase, resetDatabase, scalar } from './helpers.js';
+import { agent, closeDatabase, resetDatabase, scalar } from './helpers.js';
 import { fixture } from '../helpers/fixtures.js';
 import { stubFetch, type StubbedResponse } from '../helpers/stub-fetch.js';
 import { pollSource } from '../../src/ingest/runner.js';
@@ -19,7 +18,7 @@ afterEach(() => {
 afterAll(closeDatabase);
 
 async function createSource(overrides: Record<string, unknown> = {}): Promise<{ id: number }> {
-  const res = await request(app)
+  const res = await agent
     .post('/api/sources')
     .send({ kind: 'rss', identifier: FEED_URL, title: 'Nutanix Blog', ...overrides });
   if (res.status !== 201) throw new Error(`Source creation failed: ${JSON.stringify(res.body)}`);
@@ -43,7 +42,7 @@ describe('a poll cycle', () => {
       httpStatus: 200,
     });
 
-    const items = await request(app).get('/api/items');
+    const items = await agent.get('/api/items');
     expect(items.body.data).toHaveLength(4);
     // Newest first by default.
     expect(items.body.data[0].title).toBe('Announcing AOS 7.2');
@@ -55,11 +54,11 @@ describe('a poll cycle', () => {
     });
     restore = stub.restore;
 
-    const tag = await request(app).post('/api/tags').send({ name: 'Storage', color: 'teal' });
+    const tag = await agent.post('/api/tags').send({ name: 'Storage', color: 'teal' });
     const source = await createSource({ tagIds: [tag.body.data.id] });
     await pollSource(source.id);
 
-    const items = await request(app).get('/api/items?limit=1');
+    const items = await agent.get('/api/items?limit=1');
     // The client must never need a second round trip to render a row.
     expect(items.body.data[0].source).toMatchObject({
       id: source.id,
@@ -217,7 +216,7 @@ describe('health bookkeeping', () => {
 
     expect(outcome).toMatchObject({ status: 'failed', httpStatus: 500 });
 
-    const detail = await request(app).get(`/api/sources/${source.id}`);
+    const detail = await agent.get(`/api/sources/${source.id}`);
     expect(detail.body.data.health).toMatchObject({
       consecutiveFailures: 1,
       lastError: 'HTTP 500',
@@ -295,7 +294,7 @@ describe('health bookkeeping', () => {
     // Reddit has an adapter but no credentials in this suite, so the poll fails
     // for a reason the settings page can fix. Either way the UI must be able to
     // explain why nothing is arriving rather than showing a healthy source.
-    const source = await request(app)
+    const source = await agent
       .post('/api/sources')
       .send({ kind: 'reddit', identifier: 'nutanix', title: 'r/nutanix' });
 
@@ -310,7 +309,7 @@ describe('health bookkeeping', () => {
 describe('the due-source query', () => {
   it('returns a never-polled active source and skips an inactive one', async () => {
     const active = await createSource();
-    await request(app)
+    await agent
       .post('/api/sources')
       .send({ kind: 'rss', identifier: 'https://b.example/feed.xml', title: 'B', active: false });
 

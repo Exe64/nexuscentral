@@ -1,0 +1,29 @@
+/*
+ * Theming for react-grid-layout.
+ *
+ * The library's own stylesheet is imported for positioning and the resize handle
+ * geometry; these rules replace the two things in it that are hard-coded colours:
+ * a red drop placeholder and a black-on-anything handle. Both are invisible or
+ * garish in dark mode.
+ */
+
+.react-grid-item.react-grid-placeholder {
+  background: var(--accent);
+  opacity: 0.18;
+  border-radius: 0.5rem;
+}
+
+.react-grid-item > .react-resizable-handle::after {
+  border-right-color: var(--border-strong);
+  border-bottom-color: var(--border-strong);
+  width: 7px;
+  height: 7px;
+}
+
+/*
+ * The handle only exists in edit mode, but it sits on top of the widget body's
+ * scrollbar. Nudging it inwards keeps the scrollbar clickable.
+ */
+.react-grid-item > .react-resizable-handle.react-resizable-handle-se {
+  cursor: nwse-resize;
+}

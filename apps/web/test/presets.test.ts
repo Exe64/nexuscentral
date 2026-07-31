@@ -7,7 +7,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { DARK_NATIVE_PRESETS, THEME_PRESETS, type ThemePreset } from '@feedhub/shared';
+import { DARK_NATIVE_PRESETS, THEME_PRESETS, type ThemePreset } from '@nexuscentral/shared';
 import { CONTRAST, contrastRatio, isOutOfGamut, type Oklch } from '../src/lib/oklch.ts';
 import { resolveTokens, type ThemeName } from './helpers/css-tokens.ts';
 

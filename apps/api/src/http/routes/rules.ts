@@ -11,7 +11,7 @@ import {
   type RuleScope,
   type RuleTestMatch,
   type RuleTestResult,
-} from '@feedhub/shared';
+} from '@nexuscentral/shared';
 import {
   createRule,
   deleteRule,

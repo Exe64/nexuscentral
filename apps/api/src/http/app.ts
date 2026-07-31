@@ -11,6 +11,10 @@ import { pinoHttp } from 'pino-http';
 import { env } from '../config/env.js';
 import { logger } from '../logger.js';
 import { healthRouter } from './routes/health.js';
+import { authRouter } from './routes/auth.js';
+import { attachSession, requireAuth } from './middleware/auth.js';
+import { alertsRouter } from './routes/alerts.js';
+import { dashboardsRouter } from './routes/dashboards.js';
 import { itemsRouter } from './routes/items.js';
 import { rulesRouter } from './routes/rules.js';
 import { settingsRouter } from './routes/settings.js';
@@ -56,11 +60,28 @@ export function createApp(): Express {
     }),
   );
 
+  // Resolve the session on every request, including the public ones: `/health`
+  // answers in more detail once it knows who is asking.
+  app.use(attachSession);
+
+  // --- public -------------------------------------------------------------
+  // Only these two. `/health` because the container healthcheck and deploy.sh
+  // need it before anyone can log in, and `/auth` because logging in cannot
+  // require being logged in.
   app.use('/api', healthRouter);
+  app.use('/api', authRouter);
+
+  // --- authenticated ------------------------------------------------------
+  // The gate sits here rather than on each router, so a new router added below
+  // is protected by default. Getting that backwards is how endpoints leak.
+  app.use('/api', requireAuth);
+
   app.use('/api', settingsRouter);
   app.use('/api', tagsRouter);
   app.use('/api', sourcesRouter);
   app.use('/api', rulesRouter);
+  app.use('/api', dashboardsRouter);
+  app.use('/api', alertsRouter);
   app.use('/api', itemsRouter);
 
   app.use(notFoundHandler);

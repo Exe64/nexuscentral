@@ -11,7 +11,7 @@
  */
 
 import { useState, type ReactNode } from 'react';
-import { THEME_MODES, THEME_PRESETS, type ThemeMode, type ThemePreset } from '@feedhub/shared';
+import { THEME_MODES, THEME_PRESETS, type ThemeMode, type ThemePreset } from '@nexuscentral/shared';
 import { useUpdateSettings } from '../api/queries.ts';
 import { useT } from '../i18n.tsx';
 import { oklchToHex } from '../lib/oklch.ts';

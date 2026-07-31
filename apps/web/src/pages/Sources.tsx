@@ -6,7 +6,7 @@
  */
 
 import { useRef, useState, type ReactNode } from 'react';
-import { SOURCE_KINDS, type Source, type SourceKind } from '@feedhub/shared';
+import { SOURCE_KINDS, type Source, type SourceKind } from '@nexuscentral/shared';
 import {
   useCreateSource,
   useDeleteSource,

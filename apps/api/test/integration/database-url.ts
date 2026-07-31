@@ -9,4 +9,4 @@
  */
 export const INTEGRATION_DATABASE_URL =
   process.env['INTEGRATION_DATABASE_URL'] ??
-  'postgres://feedhub:local-dev-only@127.0.0.1:5432/feedhub_test';
+  'postgres://nexuscentral:local-dev-only@127.0.0.1:5432/nexuscentral_test';

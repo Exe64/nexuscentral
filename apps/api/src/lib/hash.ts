@@ -9,7 +9,7 @@
  */
 
 import { createHash } from 'node:crypto';
-import type { SourceKind } from '@feedhub/shared';
+import type { SourceKind } from '@nexuscentral/shared';
 import { canonicalize } from './canonicalize.js';
 
 export interface ContentHashInput {

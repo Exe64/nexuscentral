@@ -6,7 +6,7 @@
  */
 
 import type { ReactNode } from 'react';
-import type { Tag } from '@feedhub/shared';
+import type { Tag } from '@nexuscentral/shared';
 
 export function TagChip({ tag, count }: { tag: Tag; count?: number }): ReactNode {
   return (

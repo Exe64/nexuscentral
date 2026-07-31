@@ -1,16 +1,15 @@
 /**
  * The persistent left sidebar (04-SPEC-frontend.md 2).
  *
- * Navigation, and the tag list with unread counts. On `lg+` it is always there; on
- * smaller screens it slides over and closes when a link is followed, because a nav
- * panel that stays open after navigating hides the thing you navigated to.
- *
- * The dashboard switcher arrives in Phase 5 with dashboards.
+ * Navigation, dashboards, and the tag list with unread counts. On `lg+` it is
+ * always there; on smaller screens it slides over and closes when a link is
+ * followed, because a nav panel that stays open after navigating hides the thing
+ * you navigated to.
  */
 
 import type { ReactNode } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { useHealth, useTags } from '../api/queries.ts';
+import { useDashboards, useHealth, useLogout, useTags } from '../api/queries.ts';
 import { useT, type Translate } from '../i18n.tsx';
 import { useUiStore } from '../stores/ui.ts';
 import { formatNumber } from '../lib/format.ts';
@@ -29,6 +28,34 @@ function navClass({ isActive }: { isActive: boolean }): string {
     'block rounded px-2 py-1.5 text-sm',
     isActive ? 'bg-accent-subtle text-primary font-medium' : 'text-secondary hover:bg-hovered',
   ].join(' ');
+}
+
+/**
+ * Dashboards, listed rather than hidden behind a picker: with a handful of them,
+ * seeing the names is the whole navigation.
+ */
+function DashboardList({ t }: { t: Translate }): ReactNode {
+  const dashboards = useDashboards();
+  const closeSidebar = useUiStore((state) => state.closeSidebar);
+
+  if (dashboards.data === undefined || dashboards.data.length === 0) return null;
+
+  return (
+    <div className="mt-6">
+      <h2 className="text-muted px-2 text-xs font-semibold tracking-wide uppercase">
+        {t('nav.dashboardsSection')}
+      </h2>
+      <ul className="mt-2 space-y-0.5">
+        {dashboards.data.map((dashboard) => (
+          <li key={dashboard.id}>
+            <NavLink to={`/d/${dashboard.id}`} className={navClass} onClick={closeSidebar}>
+              {dashboard.name}
+            </NavLink>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
 }
 
 function TagList({ t }: { t: Translate }): ReactNode {
@@ -89,6 +116,21 @@ function HealthLine({ t }: { t: Translate }): ReactNode {
   );
 }
 
+function SignOut({ t }: { t: Translate }): ReactNode {
+  const logout = useLogout();
+
+  return (
+    <button
+      type="button"
+      onClick={() => logout.mutate()}
+      disabled={logout.isPending}
+      className="text-secondary hover:bg-hovered w-full rounded px-2 py-1 text-left text-xs"
+    >
+      {t('auth.signOut')}
+    </button>
+  );
+}
+
 export function Sidebar(): ReactNode {
   const t = useT();
   const open = useUiStore((state) => state.sidebarOpen);
@@ -137,10 +179,12 @@ export function Sidebar(): ReactNode {
           </ul>
         </nav>
 
+        <DashboardList t={t} />
         <TagList t={t} />
 
-        <div className="mt-6 border-t border-subtle pt-3">
+        <div className="border-subtle mt-6 space-y-2 border-t pt-3">
           <HealthLine t={t} />
+          <SignOut t={t} />
         </div>
       </aside>
     </>

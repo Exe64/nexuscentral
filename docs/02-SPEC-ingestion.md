@@ -67,7 +67,7 @@ Store fixtures in `/apps/api/test/fixtures/<kind>/`.
 
 - Send `If-None-Match` / `If-Modified-Since` from `sources.http_etag` / `http_modified`.
   On `304`, return `{ items: [], notModified: true }` and do not touch the item store.
-- `User-Agent: feedhub/<version> (+self-hosted)`.
+- `User-Agent: nexuscentral/<version> (+self-hosted)`.
 - Accept `application/rss+xml`, `application/atom+xml`, `application/xml`, `text/xml`.
 - Cap response body at 10 MB; abort beyond.
 - `publishedAt` fallback chain: `isoDate` → `pubDate` → `updated` → `now()`. Log at WARN
@@ -94,7 +94,7 @@ safety margin before its `expires_in`. A token refresh is one request — neglig
 
 **Requests.** All data calls go to `https://oauth.reddit.com`, never `www.reddit.com`.
 `User-Agent` must be descriptive and stable, e.g.
-`feedhub/1.0 (self-hosted personal aggregator)`. Reddit blocks generic agents.
+`nexuscentral/1.0 (self-hosted personal aggregator)`. Reddit blocks generic agents.
 
 Endpoint: `GET /r/{subreddit}/new?limit=100`. Use `before={fullname}` with the newest
 previously-seen fullname (stored in `items.raw->>'name'` for that source) to fetch only

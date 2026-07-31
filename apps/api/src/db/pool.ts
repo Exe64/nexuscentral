@@ -22,7 +22,7 @@ export const pool = new Pool({
   max: 10,
   idleTimeoutMillis: 30_000,
   connectionTimeoutMillis: 5_000,
-  application_name: 'feedhub-api',
+  application_name: 'nexuscentral-api',
 });
 
 // An idle client erroring is not tied to any request; without this handler the

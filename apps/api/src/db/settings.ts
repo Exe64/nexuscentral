@@ -12,7 +12,13 @@
  *   would accept edits that do nothing.
  */
 
-import type { SettingOrigin, Settings, ThemeMode, ThemePreset, WebhookKind } from '@feedhub/shared';
+import type {
+  SettingOrigin,
+  Settings,
+  ThemeMode,
+  ThemePreset,
+  WebhookKind,
+} from '@nexuscentral/shared';
 import { query } from './pool.js';
 import { env } from '../config/env.js';
 

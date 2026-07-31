@@ -1,13 +1,12 @@
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
-import request from 'supertest';
-import { app, closeDatabase, resetDatabase, scalar } from './helpers.js';
+import { agent, closeDatabase, resetDatabase, scalar } from './helpers.js';
 
 beforeEach(resetDatabase);
 afterAll(closeDatabase);
 
 describe('POST /api/tags', () => {
   it('creates a tag and derives the slug server-side', async () => {
-    const res = await request(app)
+    const res = await agent
       .post('/api/tags')
       .send({ name: 'Cloud Native & Storage', color: 'teal' });
 
@@ -20,7 +19,7 @@ describe('POST /api/tags', () => {
   });
 
   it('ignores a client-supplied slug', async () => {
-    const res = await request(app)
+    const res = await agent
       .post('/api/tags')
       .send({ name: 'Kubernetes', slug: 'attacker-controlled' });
 
@@ -29,12 +28,12 @@ describe('POST /api/tags', () => {
   });
 
   it('defaults the colour to neutral', async () => {
-    const res = await request(app).post('/api/tags').send({ name: 'Storage' });
+    const res = await agent.post('/api/tags').send({ name: 'Storage' });
     expect(res.body.data.color).toBe('neutral');
   });
 
   it('rejects an unknown colour with field-level detail and no stack trace', async () => {
-    const res = await request(app).post('/api/tags').send({ name: 'X', color: 'chartreuse' });
+    const res = await agent.post('/api/tags').send({ name: 'X', color: 'chartreuse' });
 
     expect(res.status).toBe(400);
     expect(res.body.error.code).toBe('VALIDATION_FAILED');
@@ -43,13 +42,13 @@ describe('POST /api/tags', () => {
   });
 
   it('rejects a name that cannot produce a slug', async () => {
-    const res = await request(app).post('/api/tags').send({ name: '!!!' });
+    const res = await agent.post('/api/tags').send({ name: '!!!' });
     expect(res.status).toBe(400);
   });
 
   it('reports a duplicate slug as 409 with the existing id', async () => {
-    const first = await request(app).post('/api/tags').send({ name: 'Ceph' });
-    const second = await request(app).post('/api/tags').send({ name: 'ceph' });
+    const first = await agent.post('/api/tags').send({ name: 'Ceph' });
+    const second = await agent.post('/api/tags').send({ name: 'ceph' });
 
     expect(second.status).toBe(409);
     expect(second.body.error.code).toBe('CONFLICT');
@@ -59,19 +58,17 @@ describe('POST /api/tags', () => {
 
 describe('GET /api/tags', () => {
   it('returns tags alphabetically with source and unread counts', async () => {
-    const storage = await request(app).post('/api/tags').send({ name: 'Storage' });
-    await request(app).post('/api/tags').send({ name: 'Alerts' });
+    const storage = await agent.post('/api/tags').send({ name: 'Storage' });
+    await agent.post('/api/tags').send({ name: 'Alerts' });
 
-    await request(app)
-      .post('/api/sources')
-      .send({
-        kind: 'rss',
-        identifier: 'https://a.example.com/feed.xml',
-        title: 'A',
-        tagIds: [storage.body.data.id],
-      });
+    await agent.post('/api/sources').send({
+      kind: 'rss',
+      identifier: 'https://a.example.com/feed.xml',
+      title: 'A',
+      tagIds: [storage.body.data.id],
+    });
 
-    const res = await request(app).get('/api/tags');
+    const res = await agent.get('/api/tags');
 
     expect(res.body.data.map((tag: { name: string }) => tag.name)).toEqual(['Alerts', 'Storage']);
     const [alerts, storageTag] = res.body.data;
@@ -82,9 +79,9 @@ describe('GET /api/tags', () => {
 
 describe('PATCH /api/tags/:id', () => {
   it('regenerates the slug on rename', async () => {
-    const created = await request(app).post('/api/tags').send({ name: 'Old Name' });
+    const created = await agent.post('/api/tags').send({ name: 'Old Name' });
 
-    const res = await request(app)
+    const res = await agent
       .patch(`/api/tags/${created.body.data.id}`)
       .send({ name: 'Brand New Name' });
 
@@ -92,23 +89,21 @@ describe('PATCH /api/tags/:id', () => {
   });
 
   it('recolours without touching the slug', async () => {
-    const created = await request(app).post('/api/tags').send({ name: 'Networking' });
+    const created = await agent.post('/api/tags').send({ name: 'Networking' });
 
-    const res = await request(app)
-      .patch(`/api/tags/${created.body.data.id}`)
-      .send({ color: 'violet' });
+    const res = await agent.patch(`/api/tags/${created.body.data.id}`).send({ color: 'violet' });
 
     expect(res.body.data).toMatchObject({ slug: 'networking', color: 'violet' });
   });
 
   it('rejects an empty patch', async () => {
-    const created = await request(app).post('/api/tags').send({ name: 'Networking' });
-    const res = await request(app).patch(`/api/tags/${created.body.data.id}`).send({});
+    const created = await agent.post('/api/tags').send({ name: 'Networking' });
+    const res = await agent.patch(`/api/tags/${created.body.data.id}`).send({});
     expect(res.status).toBe(400);
   });
 
   it('404s for an unknown tag', async () => {
-    const res = await request(app).patch('/api/tags/9999').send({ name: 'Nope' });
+    const res = await agent.patch('/api/tags/9999').send({ name: 'Nope' });
     expect(res.status).toBe(404);
     expect(res.body.error.code).toBe('NOT_FOUND');
   });
@@ -116,19 +111,17 @@ describe('PATCH /api/tags/:id', () => {
 
 describe('DELETE /api/tags/:id', () => {
   it('strips the tag from sources, rule filters and widget configs in one go', async () => {
-    const tag = await request(app).post('/api/tags').send({ name: 'Doomed' });
+    const tag = await agent.post('/api/tags').send({ name: 'Doomed' });
     const tagId: number = tag.body.data.id;
-    const otherTag = await request(app).post('/api/tags').send({ name: 'Kept' });
+    const otherTag = await agent.post('/api/tags').send({ name: 'Kept' });
     const otherId: number = otherTag.body.data.id;
 
-    await request(app)
-      .post('/api/sources')
-      .send({
-        kind: 'rss',
-        identifier: 'https://b.example.com/feed.xml',
-        title: 'B',
-        tagIds: [tagId, otherId],
-      });
+    await agent.post('/api/sources').send({
+      kind: 'rss',
+      identifier: 'https://b.example.com/feed.xml',
+      title: 'B',
+      tagIds: [tagId, otherId],
+    });
 
     // Rules and widgets have no API surface until later phases; insert directly
     // so the array cleanup this endpoint promises is actually exercised.
@@ -145,7 +138,7 @@ describe('DELETE /api/tags/:id', () => {
       [dashboardId, JSON.stringify({ tagIds: [tagId, otherId], limit: 15 })],
     );
 
-    const res = await request(app).delete(`/api/tags/${tagId}`);
+    const res = await agent.delete(`/api/tags/${tagId}`);
 
     expect(res.status).toBe(200);
     expect(res.body.data).toEqual({
@@ -165,7 +158,7 @@ describe('DELETE /api/tags/:id', () => {
   it('leaves an empty tagIds array rather than removing the key', async () => {
     // A feed widget with no tagIds means "all sources", which is a different
     // filter from one whose key is missing entirely.
-    const tag = await request(app).post('/api/tags').send({ name: 'Only' });
+    const tag = await agent.post('/api/tags').send({ name: 'Only' });
     const tagId: number = tag.body.data.id;
 
     const dashboardId = await scalar<number>(
@@ -177,13 +170,13 @@ describe('DELETE /api/tags/:id', () => {
       [dashboardId, JSON.stringify({ tagIds: [tagId] })],
     );
 
-    await request(app).delete(`/api/tags/${tagId}`);
+    await agent.delete(`/api/tags/${tagId}`);
 
     expect(await scalar<string>(`SELECT config->>'tagIds' FROM widgets LIMIT 1`)).toBe('[]');
   });
 
   it('404s for an unknown tag', async () => {
-    const res = await request(app).delete('/api/tags/9999');
+    const res = await agent.delete('/api/tags/9999');
     expect(res.status).toBe(404);
   });
 });

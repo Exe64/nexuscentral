@@ -1,6 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { app, closeDatabase, resetDatabase, scalar } from './helpers.js';
-import request from 'supertest';
+import { agent, closeDatabase, resetDatabase, scalar } from './helpers.js';
 import { query } from '../../src/db/pool.js';
 import { BATCH_SIZE, refreshScores, rescoreRecent } from '../../src/scoring/rescore.js';
 
@@ -16,15 +15,13 @@ const ITEM_COUNT = 50_000;
 beforeAll(async () => {
   await resetDatabase();
 
-  const tag = await request(app).post('/api/tags').send({ name: 'Storage' });
-  const source = await request(app)
-    .post('/api/sources')
-    .send({
-      kind: 'rss',
-      identifier: 'https://scale.example.com/feed.xml',
-      title: 'Scale',
-      tagIds: [tag.body.data.id],
-    });
+  const tag = await agent.post('/api/tags').send({ name: 'Storage' });
+  const source = await agent.post('/api/sources').send({
+    kind: 'rss',
+    identifier: 'https://scale.example.com/feed.xml',
+    title: 'Scale',
+    tagIds: [tag.body.data.id],
+  });
 
   // Titles and summaries with realistic variety, so the regexes have something to
   // work on rather than matching or missing uniformly.
@@ -48,19 +45,19 @@ beforeAll(async () => {
   );
 
   // A realistic rule set: a boost, a demotion, a scoped rule and a tag-filtered one.
-  await request(app)
+  await agent
     .post('/api/rules')
     .send({ name: 'CVE mentions', pattern: 'CVE-\\d{4}', weight: 5, scope: 'both' });
-  await request(app)
+  await agent
     .post('/api/rules')
     .send({ name: 'Press releases', pattern: 'press release', weight: -4, scope: 'title' });
-  await request(app)
+  await agent
     .post('/api/rules')
     .send({ name: 'Kubernetes', pattern: '\\b(kubernetes|k8s)\\b', weight: 2, scope: 'both' });
-  await request(app)
+  await agent
     .post('/api/rules')
     .send({ name: 'Erasure coding', pattern: 'erasure coding', weight: 1.5, scope: 'summary' });
-  await request(app)
+  await agent
     .post('/api/rules')
     .send({ name: 'Prolific author', pattern: 'author_7$', weight: -1, scope: 'author' });
 

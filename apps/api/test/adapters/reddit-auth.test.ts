@@ -14,7 +14,7 @@ const JSON_HEADERS = { 'content-type': 'application/json' };
 const CREDENTIALS: RedditCredentials = {
   clientId: 'client-abc',
   clientSecret: 'secret-xyz',
-  userAgent: 'feedhub/1.0 (self-hosted personal aggregator)',
+  userAgent: 'nexuscentral/1.0 (self-hosted personal aggregator)',
   origin: 'settings',
 };
 

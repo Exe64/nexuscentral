@@ -197,7 +197,7 @@ async function start(): Promise<PgBoss> {
     // Its own schema, so `pg_dump` of the application tables stays readable and
     // the job tables are obviously not application data.
     schema: 'pgboss',
-    application_name: 'feedhub-worker',
+    application_name: 'nexuscentral-worker',
     max: 4,
   });
 

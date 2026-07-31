@@ -7,7 +7,7 @@
  * trace.
  */
 
-import type { ErrorCode } from '@feedhub/shared';
+import type { ErrorCode } from '@nexuscentral/shared';
 import type { NextFunction, Request, Response } from 'express';
 import { ZodError } from 'zod';
 import { isProduction } from '../config/env.js';
@@ -15,6 +15,7 @@ import { logger } from '../logger.js';
 
 const STATUS_BY_CODE: Record<ErrorCode, number> = {
   VALIDATION_FAILED: 400,
+  UNAUTHORIZED: 401,
   NOT_FOUND: 404,
   CONFLICT: 409,
   UPSTREAM_FAILED: 502,
@@ -37,6 +38,10 @@ export class HttpError extends Error {
 
   static validation(message: string, details?: unknown): HttpError {
     return new HttpError('VALIDATION_FAILED', message, details);
+  }
+
+  static unauthorized(message = 'Authentication required.'): HttpError {
+    return new HttpError('UNAUTHORIZED', message);
   }
 
   static notFound(what: string): HttpError {

@@ -6,7 +6,7 @@
  */
 
 import type { PoolClient } from 'pg';
-import type { Tag, TagColor, TagWithCounts } from '@feedhub/shared';
+import type { Tag, TagColor, TagWithCounts } from '@nexuscentral/shared';
 import { query, transaction } from './pool.js';
 import { slugify } from '../lib/slug.js';
 import { HttpError } from '../http/errors.js';

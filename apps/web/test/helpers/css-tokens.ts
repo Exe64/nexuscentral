@@ -13,7 +13,7 @@
 
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import type { ThemePreset } from '@feedhub/shared';
+import type { ThemePreset } from '@nexuscentral/shared';
 import type { Oklch } from '../../src/lib/oklch.ts';
 
 const TOKENS_PATH = join(process.cwd(), 'src', 'styles', 'tokens.css');

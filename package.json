@@ -1,5 +1,5 @@
 {
-  "name": "feedhub",
+  "name": "nexuscentral",
   "version": "0.1.0",
   "private": true,
   "description": "Self-hosted single-user information aggregation dashboard",
@@ -18,7 +18,7 @@
     "format:check": "prettier --check .",
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test",
-    "migrate": "pnpm --filter @feedhub/api migrate"
+    "migrate": "pnpm --filter @nexuscentral/api migrate"
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",

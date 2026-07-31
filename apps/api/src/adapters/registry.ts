@@ -6,7 +6,7 @@
  * adapter exists yet.
  */
 
-import type { ResolvedSource, SourceAdapter, SourceKind } from '@feedhub/shared';
+import type { ResolvedSource, SourceAdapter, SourceKind } from '@nexuscentral/shared';
 import { rssAdapter } from './rss/index.js';
 import { redditAdapter, RedditNotConfiguredError } from './reddit/index.js';
 import { nitterAdapter, NitterNotConfiguredError } from './nitter/index.js';

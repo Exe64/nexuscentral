@@ -6,7 +6,7 @@
  */
 
 import { useMemo, useState, type ReactNode } from 'react';
-import { RULE_SCOPES, type Rule, type RuleScope } from '@feedhub/shared';
+import { RULE_SCOPES, type Rule, type RuleScope } from '@nexuscentral/shared';
 import {
   useCreateRule,
   useDeleteRule,

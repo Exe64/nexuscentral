@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>feedhub</title>
+    <title>nexuscentral</title>
     <!--
       No-flash guard (04-SPEC-frontend.md 5.1). Inline and before any stylesheet,
       on purpose: a module import would resolve after the first paint, and a dark
@@ -13,7 +13,7 @@
     <script>
       (function () {
         try {
-          var s = JSON.parse(localStorage.getItem('feedhub.theme') || '{}');
+          var s = JSON.parse(localStorage.getItem('nexuscentral.theme') || '{}');
           var mode = s.mode || 'system';
           var dark =
             mode === 'dark' ||

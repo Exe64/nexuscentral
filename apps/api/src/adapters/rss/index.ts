@@ -12,7 +12,7 @@ import type {
   NormalizedItem,
   ResolvedSource,
   SourceAdapter,
-} from '@feedhub/shared';
+} from '@nexuscentral/shared';
 import { DEFAULT_MAX_BYTES, httpRequest, HttpError } from '../../lib/http.js';
 import {
   extractFeedLinks,

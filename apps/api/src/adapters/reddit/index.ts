@@ -12,7 +12,7 @@ import type {
   NormalizedItem,
   ResolvedSource,
   SourceAdapter,
-} from '@feedhub/shared';
+} from '@nexuscentral/shared';
 import { getRawSettings, resolveRedditCredentials } from '../../db/settings.js';
 import { newestFullnameForSource } from '../../db/items.js';
 import { SUMMARY_MAX_LENGTH, toPlainTitle, toSummary } from '../../lib/text.js';

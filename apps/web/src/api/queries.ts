@@ -13,6 +13,10 @@ import {
   type UseQueryResult,
 } from '@tanstack/react-query';
 import type {
+  Breakpoint,
+  Dashboard,
+  DashboardData,
+  DashboardWithWidgets,
   Item,
   ItemDetail,
   ItemSort,
@@ -27,7 +31,9 @@ import type {
   TagWithCounts,
   ThemeMode,
   ThemePreset,
-} from '@feedhub/shared';
+  Widget,
+  WidgetType,
+} from '@nexuscentral/shared';
 import { apiFetch } from './client.ts';
 
 /** Most endpoints answer `{ data }`; the item list adds a cursor. */
@@ -49,8 +55,13 @@ export const keys = {
   item: (id: string) => ['items', 'detail', id] as const,
   rules: ['rules'] as const,
   ruleTest: (input: RuleTestInput) => ['rules', 'test', input] as const,
+  dashboards: ['dashboards'] as const,
+  dashboard: (id: number) => ['dashboards', id] as const,
+  dashboardData: (id: number) => ['dashboards', id, 'data'] as const,
   settings: ['settings'] as const,
   health: ['health'] as const,
+  session: ['auth', 'session'] as const,
+  sessions: ['auth', 'sessions'] as const,
 };
 
 // --- tags ------------------------------------------------------------------
@@ -431,6 +442,191 @@ export function useItemDetail(id: string | null): UseQueryResult<ItemDetailRespo
   });
 }
 
+// --- dashboards and widgets ------------------------------------------------
+
+export function useDashboards(): UseQueryResult<Dashboard[]> {
+  return useQuery({
+    queryKey: keys.dashboards,
+    queryFn: async () => (await apiFetch<Envelope<Dashboard[]>>('/dashboards')).data,
+  });
+}
+
+/** The structure: dashboard plus its widgets, with no widget data. */
+export function useDashboard(id: number | null): UseQueryResult<DashboardWithWidgets> {
+  return useQuery({
+    queryKey: keys.dashboard(id ?? 0),
+    enabled: id !== null,
+    queryFn: async () =>
+      (await apiFetch<Envelope<DashboardWithWidgets>>(`/dashboards/${id ?? 0}`)).data,
+  });
+}
+
+/**
+ * Every widget's payload, in one request.
+ *
+ * Decision D7: fifteen widgets fetching independently would mean fifteen
+ * connections on load and rate limiting reimplemented in the browser.
+ */
+export function useDashboardData(id: number | null): UseQueryResult<DashboardData> {
+  return useQuery({
+    queryKey: keys.dashboardData(id ?? 0),
+    enabled: id !== null,
+    // The server caches each payload for 60s; asking more often just burns a round
+    // trip.
+    staleTime: 30_000,
+    queryFn: () => apiFetch<DashboardData>(`/dashboards/${id ?? 0}/data`),
+  });
+}
+
+export function useCreateDashboard(): UseMutationResult<Dashboard, Error, { name: string }> {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (body) =>
+      (await apiFetch<Envelope<Dashboard>>('/dashboards', { method: 'POST', body })).data,
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: keys.dashboards });
+    },
+  });
+}
+
+export function useUpdateDashboard(): UseMutationResult<
+  Dashboard,
+  Error,
+  { id: number; name?: string; position?: number }
+> {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, ...body }) =>
+      (await apiFetch<Envelope<Dashboard>>(`/dashboards/${id}`, { method: 'PATCH', body })).data,
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: ['dashboards'] });
+    },
+  });
+}
+
+export function useDeleteDashboard(): UseMutationResult<void, Error, number> {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (id) => {
+      await apiFetch<void>(`/dashboards/${id}`, { method: 'DELETE' });
+    },
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: ['dashboards'] });
+    },
+  });
+}
+
+export interface LayoutEntry {
+  widgetId: number;
+  breakpoint: Breakpoint;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+/**
+ * Bulk layout persistence.
+ *
+ * No cache invalidation on success, on purpose: the grid already shows the new
+ * positions, and refetching would replace them with an identical set while the
+ * user is still dragging.
+ */
+export function useSaveLayout(): UseMutationResult<
+  { updated: number },
+  Error,
+  { dashboardId: number; layouts: LayoutEntry[] }
+> {
+  return useMutation({
+    mutationFn: async ({ dashboardId, layouts }) =>
+      (
+        await apiFetch<Envelope<{ updated: number }>>(`/dashboards/${dashboardId}/layout`, {
+          method: 'PATCH',
+          body: { layouts },
+        })
+      ).data,
+  });
+}
+
+export interface CreateWidgetBody {
+  dashboardId: number;
+  type: WidgetType;
+  title: string;
+  config?: Record<string, unknown>;
+}
+
+function invalidateDashboard(client: ReturnType<typeof useQueryClient>, dashboardId: number): void {
+  void client.invalidateQueries({ queryKey: keys.dashboard(dashboardId) });
+  void client.invalidateQueries({ queryKey: keys.dashboardData(dashboardId) });
+}
+
+export function useCreateWidget(): UseMutationResult<Widget, Error, CreateWidgetBody> {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (body) =>
+      (await apiFetch<Envelope<Widget>>('/widgets', { method: 'POST', body })).data,
+    onSuccess: (widget) => invalidateDashboard(client, widget.dashboardId),
+  });
+}
+
+export function useUpdateWidget(): UseMutationResult<
+  Widget,
+  Error,
+  { id: number; title?: string; config?: Record<string, unknown> }
+> {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, ...body }) =>
+      (await apiFetch<Envelope<Widget>>(`/widgets/${id}`, { method: 'PATCH', body })).data,
+    onSuccess: (widget) => invalidateDashboard(client, widget.dashboardId),
+  });
+}
+
+export function useDeleteWidget(): UseMutationResult<void, Error, Widget> {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (widget) => {
+      await apiFetch<void>(`/widgets/${widget.id}`, { method: 'DELETE' });
+    },
+    onSuccess: (_result, widget) => invalidateDashboard(client, widget.dashboardId),
+  });
+}
+
+/** Refresh one widget without reloading the other fourteen. */
+export function useRefreshWidget(): UseMutationResult<
+  DashboardData,
+  Error,
+  { widgetId: number; dashboardId: number }
+> {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({ widgetId }) =>
+      apiFetch<DashboardData>(`/widgets/${widgetId}/data`, { method: 'POST' }),
+    onSuccess: (result, { dashboardId }) => {
+      // Merge into the batched payload rather than refetching all of it.
+      client.setQueryData<DashboardData>(keys.dashboardData(dashboardId), (current) =>
+        current === undefined
+          ? result
+          : { ...current, widgets: { ...current.widgets, ...result.widgets } },
+      );
+    },
+  });
+}
+
+// --- alerts ----------------------------------------------------------------
+
+export function useAcknowledgeAlert(): UseMutationResult<void, Error, string> {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (id) => {
+      await apiFetch<void>(`/alerts/${id}/ack`, { method: 'POST' });
+    },
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: ['dashboards'] });
+    },
+  });
+}
+
 // --- settings --------------------------------------------------------------
 
 export function useSettings(): UseQueryResult<Settings> {
@@ -515,4 +711,121 @@ export interface HealthResponse {
 
 export function useHealth(): UseQueryResult<HealthResponse> {
   return useQuery({ queryKey: keys.health, queryFn: () => apiFetch<HealthResponse>('/health') });
+}
+
+// --- auth ------------------------------------------------------------------
+
+export interface SessionState {
+  authenticated: boolean;
+  /** False only if the credential row was removed from under a running instance. */
+  configured: boolean;
+}
+
+/**
+ * The query the whole shell waits on.
+ *
+ * No retry: a 401 here is the answer, not a failure to get one, and retrying it
+ * three times just delays the login screen.
+ */
+export function useSession(): UseQueryResult<SessionState> {
+  return useQuery({
+    queryKey: keys.session,
+    queryFn: async () => (await apiFetch<Envelope<SessionState>>('/auth/session')).data,
+    retry: false,
+    staleTime: 30_000,
+  });
+}
+
+export function useLogin(): UseMutationResult<void, Error, { password: string }> {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (body) => {
+      await apiFetch<void>('/auth/login', { method: 'POST', body });
+    },
+    onSuccess: () => {
+      // Write the fact we just learned straight into the cache. The gate is
+      // watching this query, so it flips on this line.
+      //
+      // Deliberately NOT `client.clear()` first: clearing removes the query
+      // object the mounted observer holds, and the observer does not re-bind to
+      // the replacement. The gate would keep rendering the login screen after a
+      // successful sign-in -- which is exactly what it did.
+      client.setQueryData<SessionState>(keys.session, { authenticated: true, configured: true });
+
+      // Anything cached before the session ended may have failed with a 401.
+      // Everything except the auth queries refetches on next use.
+      void client.invalidateQueries({ predicate: (q) => q.queryKey[0] !== 'auth' });
+    },
+  });
+}
+
+export function useLogout(): UseMutationResult<void, Error, void> {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      await apiFetch<void>('/auth/logout', { method: 'POST' });
+    },
+    onSuccess: () => {
+      // Flip the gate first: that unmounts everything protected, so the removal
+      // below is not fighting live observers.
+      client.setQueryData<SessionState>(keys.session, { authenticated: false, configured: true });
+
+      // Drop rather than invalidate: refetching protected queries while signed
+      // out would just produce a burst of 401s, and nothing should survive to be
+      // shown to whoever signs in next.
+      client.removeQueries({ predicate: (q) => q.queryKey[0] !== 'auth' });
+    },
+  });
+}
+
+export function useChangePassword(): UseMutationResult<
+  { revokedSessions: number },
+  Error,
+  { currentPassword: string; newPassword: string }
+> {
+  return useMutation({
+    mutationFn: async (body) =>
+      (
+        await apiFetch<Envelope<{ revokedSessions: number }>>('/auth/password', {
+          method: 'POST',
+          body,
+        })
+      ).data,
+  });
+}
+
+export interface SessionRecord {
+  id: number;
+  createdAt: string;
+  lastSeenAt: string;
+  expiresAt: string;
+  userAgent: string | null;
+  ip: string | null;
+  current?: boolean;
+}
+
+export function useSessions(): UseQueryResult<SessionRecord[]> {
+  return useQuery({
+    queryKey: keys.sessions,
+    queryFn: async () => (await apiFetch<Envelope<SessionRecord[]>>('/auth/sessions')).data,
+  });
+}
+
+export function useRevokeOtherSessions(): UseMutationResult<
+  { revokedSessions: number },
+  Error,
+  void
+> {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async () =>
+      (
+        await apiFetch<Envelope<{ revokedSessions: number }>>('/auth/sessions/revoke-others', {
+          method: 'POST',
+        })
+      ).data,
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: keys.sessions });
+    },
+  });
 }

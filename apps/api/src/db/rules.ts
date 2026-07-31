@@ -4,7 +4,7 @@
  * A rule's `weight` may be negative -- that is how noise is demoted, not a bug.
  */
 
-import type { Rule, RuleScope } from '@feedhub/shared';
+import type { Rule, RuleScope } from '@nexuscentral/shared';
 import { query } from './pool.js';
 import type { RuleSpec } from '../scoring/types.js';
 

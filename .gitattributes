@@ -1,0 +1,17 @@
+# Line endings.
+#
+# This repository is edited from Windows and runs on Linux. A shell script that
+# picks up CRLF fails on its very first line -- `set -euo pipefail\r` is read as
+# an option named "pipefail\r" -- and the failure looks nothing like its cause.
+#
+# Normalise everything to LF in the repository, and check it out as LF too.
+* text=auto eol=lf
+
+# Never touched, and never diffed as text.
+*.png binary
+*.jpg binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.gz binary
+*.sql.gz binary

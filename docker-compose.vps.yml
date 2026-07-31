@@ -1,0 +1,45 @@
+# VPS overlay: Traefik v3 already owns 80/443 and Let's Encrypt on this host,
+# on the external `web_network`. Same shape as the other apps on the VPS.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.vps.yml up -d --build
+#
+# Required in .env:
+#   DOMAIN=nexuscentral.example.com
+#   TRAEFIK_CERTRESOLVER=letsencrypt   (the certresolver name in /opt/traefik)
+#
+# There is no basic-auth middleware here. The application authenticates for
+# itself now: a password, a session cookie, rate-limited logins, and every route
+# except /api/health and /api/auth/* closed. Stacking Traefik basic auth on top
+# would mean two prompts for one login and no way to sign out of the outer one.
+#
+# Only `web` joins the Traefik network; `api` and `postgres` stay on the internal
+# default network. The loopback publish from docker-compose.yml stays as it is:
+# it is bound to 127.0.0.1, and deploy.sh uses it to health-check the stack
+# without depending on DNS or on Traefik being up.
+
+services:
+  web:
+    networks:
+      # `default` must be listed explicitly. Naming only `web` here would take the
+      # container off the internal network and it could no longer reach `api`.
+      - default
+      - web
+    labels:
+      - 'traefik.enable=true'
+      - 'traefik.docker.network=web_network'
+      - 'traefik.http.routers.nexuscentral.rule=Host(`${DOMAIN}`)'
+      - 'traefik.http.routers.nexuscentral.entrypoints=websecure'
+      - 'traefik.http.routers.nexuscentral.tls=true'
+      - 'traefik.http.routers.nexuscentral.tls.certresolver=${TRAEFIK_CERTRESOLVER}'
+      - 'traefik.http.services.nexuscentral.loadbalancer.server.port=80'
+
+      # HSTS. The session cookie is already Secure, so a downgrade cannot leak it;
+      # this stops the first plaintext request from being made at all.
+      - 'traefik.http.routers.nexuscentral.middlewares=nexuscentral-hsts@docker'
+      - 'traefik.http.middlewares.nexuscentral-hsts.headers.stsSeconds=31536000'
+      - 'traefik.http.middlewares.nexuscentral-hsts.headers.stsIncludeSubdomains=false'
+
+networks:
+  web:
+    external: true
+    name: web_network

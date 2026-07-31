@@ -1,5 +1,5 @@
 {
-  "name": "@feedhub/api",
+  "name": "@nexuscentral/api",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -16,7 +16,7 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@feedhub/shared": "workspace:*",
+    "@nexuscentral/shared": "workspace:*",
     "dotenv": "^16.4.7",
     "express": "^5.1.0",
     "node-pg-migrate": "^7.9.0",

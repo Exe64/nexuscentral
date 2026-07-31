@@ -1,75 +1,56 @@
 /**
- * Widget config shapes (see 04-SPEC-frontend.md 4).
+ * Widget-adjacent types that are not derived from a config schema.
  *
- * The zod schemas that validate these live next to each widget definition in
- * apps/web; the API imports them to reject an invalid config at the boundary
- * rather than discovering it at render time.
+ * The config shapes themselves live in `widget-config.ts`, inferred from the zod
+ * schemas so there is exactly one definition of each.
  */
-
-import type { ItemSort } from './domain.js';
 
 export type Density = 'comfortable' | 'compact';
 
-export interface FeedWidgetConfig {
-  /** Empty means all sources. */
-  tagIds: number[];
-  sourceIds: number[];
-  sort: ItemSort;
-  unreadOnly: boolean;
-  minScore: number | null;
-  /** 1..50 */
-  limit: number;
-  showThumbnails: boolean;
-  showSource: boolean;
-  /**
-   * Render N items and hide the rest behind "Show more". Stops one chatty
-   * source from burying every other widget on the page.
-   */
-  collapseAfter: number | null;
-  density: Density;
-}
-
 export type CustomApiRender = 'list' | 'list_with_meta' | 'single_value' | 'key_values';
 
-export interface FetchSpecMapping {
-  /** JSONPath selecting the array of elements. */
-  root: string;
-  /** JSONPath per output field, relative to an element. */
-  fields: Record<string, string>;
-}
-
-export interface FetchSpec {
-  url: string;
-  params: Record<string, string>;
-  /** `${VAR}` placeholders resolve from server-side environment variables. */
-  headers: Record<string, string>;
-  mapping: FetchSpecMapping;
-}
-
-export interface CustomApiWidgetConfig extends FetchSpec {
-  render: CustomApiRender;
-  ttlMinutes: number;
-  collapseAfter: number | null;
-}
-
-export interface AlertsWidgetConfig {
-  limit: number;
-}
-
-export interface SourceHealthWidgetConfig {
-  /** Records nothing today; kept so the type exists and configs stay uniform. */
-  showHealthy: boolean;
-}
-
-export interface StatsWidgetConfig {
-  showRedditBudget: boolean;
-}
-
-/** The generic item shape every custom_api renderer consumes. */
+/** The generic item shape every `custom_api` renderer will consume in Phase 6. */
 export interface GenericItem {
   title: string;
   url?: string;
   subtitle?: string;
   timestamp?: string;
   value?: string | number;
+}
+
+// --- what the batched data endpoint returns, per widget type ---------------
+
+import type { Alert, Item, Source } from './domain.js';
+
+export interface FeedWidgetData {
+  items: Item[];
+  /** Total matching the filter, so the widget can say "15 of 240". */
+  total: number;
+}
+
+export interface AlertsWidgetData {
+  alerts: Alert[];
+  unacknowledged: number;
+}
+
+export interface SourceHealthWidgetData {
+  sources: Source[];
+  /** Zero here is a feature: "All sources healthy." is worth saying. */
+  unhealthy: number;
+  total: number;
+}
+
+export interface StatsWidgetData {
+  itemsToday: number;
+  itemsThisWeek: number;
+  unread: number;
+  starred: number;
+  topSources: { id: number; title: string; count: number }[];
+  reddit: {
+    configured: boolean;
+    remaining: number | null;
+    limit: number | null;
+    utilisation: number | null;
+    resetIn: number | null;
+  };
 }

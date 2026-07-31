@@ -7,7 +7,7 @@
 
 import { Router } from 'express';
 import { z } from 'zod';
-import { THEME_MODES, THEME_PRESETS, WEBHOOK_KINDS } from '@feedhub/shared';
+import { THEME_MODES, THEME_PRESETS, WEBHOOK_KINDS } from '@nexuscentral/shared';
 import {
   getRawSettings,
   resolveNitterBaseUrls,

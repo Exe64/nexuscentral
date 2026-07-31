@@ -23,7 +23,7 @@ import type {
   NormalizedItem,
   ResolvedSource,
   SourceAdapter,
-} from '@feedhub/shared';
+} from '@nexuscentral/shared';
 import { getRawSettings, resolveNitterBaseUrls } from '../../db/settings.js';
 import { httpRequest, HttpError } from '../../lib/http.js';
 import { FEED_ACCEPT_HEADER } from '../rss/discover.js';

@@ -10,7 +10,7 @@ import { env } from './config/env.js';
 
 export const logger = pino({
   level: env.LOG_LEVEL,
-  base: { service: 'feedhub-api' },
+  base: { service: 'nexuscentral-api' },
   redact: {
     paths: [
       'req.headers.authorization',
