@@ -24,6 +24,7 @@ import {
   looksLikeFeed,
 } from './discover.js';
 import { FeedParseError, parseFeed, type ParsedFeed } from './parse.js';
+import { redditFeedUrl } from './reddit.js';
 
 /** Per-request budget during resolution, so several candidates fit the route's 15s. */
 const RESOLVE_TIMEOUT_MS = 8_000;
@@ -91,6 +92,14 @@ export class RssAdapter implements SourceAdapter {
   async resolve(input: string): Promise<ResolvedSource[]> {
     const entryUrl = normalizeInputUrl(input);
 
+    // Reddit is recognised before any request goes out. Fetching reddit.com to
+    // read its advertised feeds would spend the per-IP budget on HTML and still
+    // land on the *hot* listing; `reddit.ts` explains why that is the wrong one.
+    const redditUrl = redditFeedUrl(entryUrl);
+    if (redditUrl !== null) {
+      return [await this.#fetchFeed(redditUrl)];
+    }
+
     const response = await httpRequest(entryUrl, {
       headers: { Accept: FEED_ACCEPT_HEADER },
       timeoutMs: RESOLVE_TIMEOUT_MS,
@@ -124,6 +133,28 @@ export class RssAdapter implements SourceAdapter {
     }
 
     return [];
+  }
+
+  /**
+   * Resolve a URL already known to be a feed, letting failures through.
+   *
+   * The opposite of `#tryCandidate` on purpose: that one returns null so a dead
+   * guess cannot sink the others, but here the URL is not a guess. "HTTP 429" is
+   * a far more useful answer than "no feed found" when Reddit is simply
+   * rate limiting the resolve.
+   */
+  async #fetchFeed(url: string): Promise<ResolvedSource> {
+    const response = await httpRequest(url, {
+      headers: { Accept: FEED_ACCEPT_HEADER },
+      timeoutMs: RESOLVE_TIMEOUT_MS,
+      retries: 1,
+    });
+
+    if (!response.ok) {
+      throw new HttpError('status', `HTTP ${response.status}`, url, response.status);
+    }
+
+    return toResolvedSource(response.url, await parseFeed(response.body, response.url));
   }
 
   async #resolveCandidates(

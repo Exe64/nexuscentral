@@ -16,12 +16,22 @@ import {
   markPollFailure,
   markPollStarted,
   markPollSuccess,
+  markPollThrottled,
 } from '../db/sources.js';
 import { logger as rootLogger } from '../logger.js';
 import { HttpError as HttpClientError } from '../lib/http.js';
 
 /** The runner enforces the adapter contract's 30s ceiling. */
 export const FETCH_TIMEOUT_MS = 30_000;
+
+/**
+ * Shown in the source's health column while it is being rate limited. Written
+ * for someone who wants to know whether to act: nothing is broken, and the fix
+ * if it persists is fewer sources on that host or a longer interval.
+ */
+export const THROTTLED_MESSAGE =
+  'Rate limited (HTTP 429). Not a failure: the next scheduled poll retries. ' +
+  'If it persists, poll this host less often or merge its sources.';
 
 export interface PollOutcome {
   sourceId: number;
@@ -30,8 +40,9 @@ export interface PollOutcome {
    * `not_modified` -- HTTP 304
    * `no_new_items` -- zero items, and the adapter says that is the steady state
    * `empty`        -- zero items where that is a symptom; counts towards silent death
+   * `throttled`    -- HTTP 429; not a failure, and must not count towards one
    */
-  status: 'ok' | 'not_modified' | 'no_new_items' | 'empty' | 'failed' | 'skipped';
+  status: 'ok' | 'not_modified' | 'no_new_items' | 'empty' | 'failed' | 'skipped' | 'throttled';
   itemCount: number;
   newCount: number;
   /**
@@ -163,6 +174,25 @@ export async function pollSource(sourceId: number): Promise<PollOutcome> {
 
     return outcome;
   } catch (err) {
+    // Throttling is not sickness. The server answered, and said "not now"; the
+    // next scheduled poll is the retry. Letting this fall through to
+    // `markPollFailure` would deactivate a healthy source after ten of them.
+    if (err instanceof HttpClientError && err.status === 429) {
+      await markPollThrottled(sourceId, THROTTLED_MESSAGE);
+      const outcome: PollOutcome = {
+        sourceId,
+        status: 'throttled',
+        itemCount: 0,
+        newCount: 0,
+        insertedIds: [],
+        durationMs: Date.now() - startedAt,
+        httpStatus: 429,
+        error: THROTTLED_MESSAGE,
+      };
+      log.warn(logPayload(outcome, source.kind), 'Poll throttled; the next cycle is the retry');
+      return outcome;
+    }
+
     const message = describeError(err);
     const failure = await markPollFailure(sourceId, message);
 

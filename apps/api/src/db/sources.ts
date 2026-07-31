@@ -405,6 +405,23 @@ export async function markPollSuccess(id: number, result: PollSuccess): Promise<
   return rows[0]?.consecutive_empty ?? 0;
 }
 
+/**
+ * Rate limited: the server answered, it just answered "not now".
+ *
+ * Touches neither `consecutive_failures` nor `last_ok_at`, and both omissions are
+ * the point. Counting a 429 as a failure would deactivate a perfectly healthy
+ * source after ten throttled polls, and Reddit's unauthenticated budget is tight
+ * enough -- roughly one request per 30-60s per IP, no `Retry-After` sent -- that
+ * ten is reachable in an afternoon. Counting it as a success would claim data
+ * arrived when none did, and reset a real failure streak with it.
+ *
+ * `last_error` is still written, so the UI can say why the source is quiet
+ * instead of showing a healthy source that silently stopped producing.
+ */
+export async function markPollThrottled(id: number, message: string): Promise<void> {
+  await query(`UPDATE sources SET last_error = $2 WHERE id = $1`, [id, message.slice(0, 2000)]);
+}
+
 export interface PollFailure {
   consecutiveFailures: number;
   /** True when this failure crossed the threshold and deactivated the source. */

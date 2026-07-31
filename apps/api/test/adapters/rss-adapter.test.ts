@@ -287,3 +287,53 @@ describe('RssAdapter.resolve', () => {
     );
   });
 });
+
+describe('RssAdapter.resolve, Reddit', () => {
+  const REDDIT_NEW = 'https://www.reddit.com/r/selfhosted/new.rss';
+  const ATOM = { 'content-type': 'application/atom+xml; charset=UTF-8' };
+  // Trimmed to the shape that matters: Reddit's `<id>` is the `t3_` fullname and
+  // there is no `ups` and no `num_comments` anywhere in the document.
+  const FEED = `<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title>newest submissions : selfhosted</title>
+  <entry>
+    <id>t3_1sey9ch</id>
+    <title>Need an alternate to NextCloud</title>
+    <link href="https://www.reddit.com/r/selfhosted/comments/1vc3lbw/friendly_gui_for_mail/"/>
+    <updated>2026-07-31T17:18:00+00:00</updated>
+  </entry>
+</feed>`;
+
+  it('goes straight to the chronological feed without fetching reddit.com', async () => {
+    const stub = stubFetch({ [REDDIT_NEW]: { body: FEED, headers: ATOM } });
+    restore = stub.restore;
+
+    const candidates = await new RssAdapter().resolve('reddit.com/r/selfhosted');
+
+    expect(candidates[0]?.identifier).toBe(REDDIT_NEW);
+    // The assertion with teeth. Falling through to the generic resolver would
+    // spend Reddit's per-IP budget on HTML and then land on the *hot* listing.
+    expect(stub.requests).toHaveLength(1);
+    expect(stub.requests[0]?.url).toBe(REDDIT_NEW);
+  });
+
+  it('reports a rate-limited resolve as 429 rather than "no feed found"', async () => {
+    const stub = stubFetch({ [REDDIT_NEW]: { status: 429, body: '' } });
+    restore = stub.restore;
+
+    // #tryCandidate swallows errors so one dead guess cannot sink the others.
+    // This URL is not a guess, so the real status has to reach the user.
+    await expect(new RssAdapter().resolve('reddit.com/r/selfhosted')).rejects.toMatchObject({
+      status: 429,
+    });
+  });
+
+  it('leaves a non-Reddit URL on the generic path', async () => {
+    const stub = stubFetch({
+      'https://example.com/': { body: fixture('rss', 'rss2-standard.xml'), headers: XML },
+    });
+    restore = stub.restore;
+
+    await expect(new RssAdapter().resolve('example.com/')).resolves.toHaveLength(1);
+  });
+});

@@ -244,6 +244,47 @@ describe('health bookkeeping', () => {
     );
   });
 
+  it('does not deactivate a source that is merely being rate limited', async () => {
+    // Reddit's unauthenticated budget is roughly one request per 30-60s per IP,
+    // so ten throttled polls is an afternoon, not a dead feed. Treating 429 as a
+    // failure would switch off a healthy subreddit.
+    const stub = stubFetch({ [FEED_URL]: { status: 429, body: '' } });
+    restore = stub.restore;
+
+    const source = await createSource();
+    await scalar(`UPDATE sources SET consecutive_failures = 9 WHERE id = $1 RETURNING id`, [
+      source.id,
+    ]);
+
+    const outcome = await pollSource(source.id);
+
+    expect(outcome).toMatchObject({ status: 'throttled', httpStatus: 429 });
+    expect(outcome.deactivated).toBeUndefined();
+    expect(await scalar<boolean>(`SELECT active FROM sources WHERE id = $1`, [source.id])).toBe(
+      true,
+    );
+
+    const detail = await agent.get(`/api/sources/${source.id}`);
+    // The streak is left exactly as it was: a 429 is evidence about the budget,
+    // not about the source's health, so it neither accuses nor exonerates.
+    expect(detail.body.data.health.consecutiveFailures).toBe(9);
+    // Still explained in the UI, so a quiet source never looks healthy for no reason.
+    expect(detail.body.data.health.lastError).toContain('429');
+  });
+
+  it('does not let a rate-limited poll fake a successful one', async () => {
+    const stub = stubFetch({ [FEED_URL]: { status: 429, body: '' } });
+    restore = stub.restore;
+
+    const source = await createSource();
+    await pollSource(source.id);
+
+    const detail = await agent.get(`/api/sources/${source.id}`);
+    // No items arrived, so `last_ok_at` must not move. Otherwise a source that is
+    // throttled forever reads as freshly successful forever.
+    expect(detail.body.data.health.lastOkAt).toBeNull();
+  });
+
   it('counts a 200 with zero items towards silent death', async () => {
     const empty = `<?xml version="1.0"?><rss version="2.0"><channel><title>Quiet</title><link>https://q.example</link></channel></rss>`;
     const stub = stubFetch({ [FEED_URL]: { body: empty, headers: XML } });

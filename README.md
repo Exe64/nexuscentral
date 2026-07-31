@@ -311,6 +311,43 @@ The rate budget reads the `x-ratelimit-*` headers and enforces two limits: never
 than half the window, and stop entirely below ten remaining requests. A single-user instance
 polling 60 subreddits every 15 minutes uses about 4%.
 
+#### Subreddits without credentials
+
+While you wait for approval, paste a subreddit URL as an **RSS** source. Reddit's Atom feeds
+need no credentials, and the resolver recognises the URL before any request goes out:
+
+| You paste                                   | You get                                          |
+| ------------------------------------------- | ------------------------------------------------ |
+| `reddit.com/r/selfhosted`                   | `.../r/selfhosted/new.rss`                        |
+| `reddit.com/r/selfhosted.rss`               | `.../r/selfhosted/new.rss`                        |
+| `reddit.com/r/selfhosted+homelab`           | `.../r/selfhosted+homelab/new.rss`                |
+| `reddit.com/r/selfhosted/top?t=week`        | `.../r/selfhosted/top.rss?t=week`                 |
+
+Three things are worth knowing before relying on it.
+
+**`/r/x.rss` is the _hot_ listing**, which leads with stickied posts months old and reorders as
+things trend. A bare subreddit URL is rewritten to `/new.rss`; a listing you typed on purpose
+is kept, query string included.
+
+**Multireddits are one request.** Reddit's unauthenticated budget is per IP and tight —
+measured at roughly one request per 30–60s, with `x-ratelimit-remaining` at `0.0` after a
+single call and no `Retry-After` sent. Folding subreddits into `/r/a+b+c/new.rss` is the
+difference between polling comfortably and being throttled. A 429 is therefore recorded as
+`throttled`, not as a failure: it is written to `health.lastError` so the UI can say why a
+source is quiet, but it moves neither `consecutive_failures` nor `last_ok_at`. Counting it as
+a failure would switch off a healthy subreddit after ten throttled polls.
+
+**You lose engagement.** The Atom carries no `ups` and no `num_comments`, so
+`engagementScore` and `engagementComments` stay null, the engagement term of the score is
+zero, and sorting by engagement means nothing for those items. Rules, recency and source
+weight are unaffected. That is the standing reason to move the source to the `reddit` kind
+once credentials arrive — expect the items still in the feed window to be stored once more,
+since `content_hash` includes the kind and the identifier by design.
+
+The comments firehose (`/r/x/comments/.rss`) resolves too, but it is one entry per _comment_,
+titled `/u/author on <post title>`, and it does not carry `num_comments` either — it will not
+give the engagement signal back.
+
 ### X via Nitter
 
 Best-effort and degradable. The official X API has had no free tier since February 2026, so
