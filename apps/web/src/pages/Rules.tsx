@@ -15,11 +15,26 @@ import {
   useTags,
   useUpdateRule,
 } from '../api/queries.ts';
+import {
+  Button,
+  CheckboxField,
+  EmptyState,
+  Mono,
+  Notice,
+  PageHeader,
+  Panel,
+  TD,
+  TH,
+  TR,
+  Table,
+} from '../components/ui.tsx';
 import { useDebounced } from '../hooks/useDebounced.ts';
 import { useT, type Translate } from '../i18n.tsx';
 
 /** Long enough that a half-typed pattern does not cost a request. */
 const TEST_DEBOUNCE_MS = 400;
+
+const CONTROL = 'bg-surface border-subtle text-primary w-full rounded border px-2 py-1.5 text-sm';
 
 function TestPanel({
   pattern,
@@ -43,18 +58,23 @@ function TestPanel({
   const test = useRuleTest(input, debounced.trim() !== '');
 
   return (
-    <section>
-      <h4>{t('rules.test.title')}</h4>
-      <p>{t('rules.test.hint')}</p>
+    <section className="border-subtle bg-base mt-4 rounded-lg border p-3">
+      <h3 className="text-primary text-sm font-medium">{t('rules.test.title')}</h3>
+      <p className="text-muted mt-0.5 text-xs">{t('rules.test.hint')}</p>
 
-      {debounced.trim() === '' && <p>{t('rules.test.needsPattern')}</p>}
-      {test.isFetching && <p>{t('rules.test.pending')}</p>}
+      {debounced.trim() === '' && (
+        <p className="text-secondary mt-2 text-sm">{t('rules.test.needsPattern')}</p>
+      )}
+      {test.isFetching && <p className="text-secondary mt-2 text-sm">{t('rules.test.pending')}</p>}
 
       {test.data !== undefined &&
         !test.isFetching &&
         (test.data.valid ? (
           <>
-            <p role="status">
+            <p
+              role="status"
+              className={`mt-2 text-sm ${test.data.matchCount === 0 ? 'text-secondary' : 'text-positive'}`}
+            >
               {test.data.matchCount === 0
                 ? t('rules.test.none')
                 : t('rules.test.result', {
@@ -62,14 +82,16 @@ function TestPanel({
                     sampleSize: test.data.sampleSize,
                   })}
             </p>
-            <ul>
+            <ul className="divide-subtle mt-2 divide-y">
               {test.data.matches.map((match) => (
-                <li key={match.itemId}>
-                  <Highlighted title={match.title} highlight={match.highlight} />{' '}
-                  <small>
+                <li key={match.itemId} className="py-1.5">
+                  <span className="text-primary block text-sm leading-snug">
+                    <Highlighted title={match.title} highlight={match.highlight} />
+                  </span>
+                  <span className="text-muted text-xs">
                     {match.sourceTitle} ·{' '}
                     {t('rules.test.matchIn', { field: match.highlight.field })}
-                  </small>
+                  </span>
                 </li>
               ))}
             </ul>
@@ -77,7 +99,9 @@ function TestPanel({
         ) : (
           // An invalid or unsafe pattern is data here, not an error: the user is
           // mid-edit and the panel has to keep working.
-          <p role="alert">{t('rules.test.invalid', { error: test.data.error })}</p>
+          <p role="alert" className="text-negative mt-2 text-sm">
+            {t('rules.test.invalid', { error: test.data.error })}
+          </p>
         ))}
     </section>
   );
@@ -115,11 +139,9 @@ function AddRuleForm({ t }: { t: Translate }): ReactNode {
   const [tagFilter, setTagFilter] = useState<number[]>([]);
 
   return (
-    <section>
-      <h3>{t('rules.add')}</h3>
-      <p>{t('rules.intro')}</p>
-
+    <Panel title={t('rules.add')} description={t('rules.intro')}>
       <form
+        className="space-y-3"
         onSubmit={(event) => {
           event.preventDefault();
           const parsedWeight = Number(weight);
@@ -139,71 +161,101 @@ function AddRuleForm({ t }: { t: Translate }): ReactNode {
           );
         }}
       >
-        <label htmlFor="rule-name">{t('rules.field.name')}</label>
-        <input
-          id="rule-name"
-          value={name}
-          placeholder={t('rules.field.name.placeholder')}
-          onChange={(event) => setName(event.target.value)}
-          required
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div>
+            <label htmlFor="rule-name" className="text-secondary mb-1 block text-sm">
+              {t('rules.field.name')}
+            </label>
+            <input
+              id="rule-name"
+              value={name}
+              placeholder={t('rules.field.name.placeholder')}
+              onChange={(event) => setName(event.target.value)}
+              required
+              className={CONTROL}
+            />
+          </div>
+
+          <div>
+            <label htmlFor="rule-pattern" className="text-secondary mb-1 block text-sm">
+              {t('rules.field.pattern')}
+            </label>
+            <input
+              id="rule-pattern"
+              value={pattern}
+              placeholder={t('rules.field.pattern.placeholder')}
+              onChange={(event) => setPattern(event.target.value)}
+              required
+              className={`${CONTROL} font-mono`}
+            />
+          </div>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-3">
+          <div>
+            <label htmlFor="rule-flags" className="text-secondary mb-1 block text-sm">
+              {t('rules.field.flags')}
+            </label>
+            <input
+              id="rule-flags"
+              value={flags}
+              maxLength={4}
+              onChange={(event) => setFlags(event.target.value)}
+              className={`${CONTROL} font-mono`}
+            />
+          </div>
+
+          <div>
+            <label htmlFor="rule-scope" className="text-secondary mb-1 block text-sm">
+              {t('rules.field.scope')}
+            </label>
+            <select
+              id="rule-scope"
+              value={scope}
+              onChange={(event) => setScope(event.target.value as RuleScope)}
+              className={CONTROL}
+            >
+              {RULE_SCOPES.map((option) => (
+                <option key={option} value={option}>
+                  {t(`rules.scope.${option}`)}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label htmlFor="rule-weight" className="text-secondary mb-1 block text-sm">
+              {t('rules.field.weight')}
+            </label>
+            <input
+              id="rule-weight"
+              type="number"
+              step="0.5"
+              value={weight}
+              onChange={(event) => setWeight(event.target.value)}
+              aria-describedby="rule-weight-hint"
+              className={CONTROL}
+            />
+            <p id="rule-weight-hint" className="text-muted mt-1 text-xs">
+              {t('rules.field.weight.hint')}
+            </p>
+          </div>
+        </div>
+
+        <CheckboxField
+          label={t('rules.field.alert')}
+          checked={alert}
+          onChange={(event) => setAlert(event.target.checked)}
         />
-
-        <label htmlFor="rule-pattern">{t('rules.field.pattern')}</label>
-        <input
-          id="rule-pattern"
-          value={pattern}
-          placeholder={t('rules.field.pattern.placeholder')}
-          onChange={(event) => setPattern(event.target.value)}
-          required
-        />
-
-        <label htmlFor="rule-flags">{t('rules.field.flags')}</label>
-        <input
-          id="rule-flags"
-          value={flags}
-          maxLength={4}
-          onChange={(event) => setFlags(event.target.value)}
-        />
-
-        <label htmlFor="rule-scope">{t('rules.field.scope')}</label>
-        <select
-          id="rule-scope"
-          value={scope}
-          onChange={(event) => setScope(event.target.value as RuleScope)}
-        >
-          {RULE_SCOPES.map((option) => (
-            <option key={option} value={option}>
-              {t(`rules.scope.${option}`)}
-            </option>
-          ))}
-        </select>
-
-        <label htmlFor="rule-weight">{t('rules.field.weight')}</label>
-        <input
-          id="rule-weight"
-          type="number"
-          step="0.5"
-          value={weight}
-          onChange={(event) => setWeight(event.target.value)}
-        />
-        <small>{t('rules.field.weight.hint')}</small>
-
-        <label>
-          <input
-            type="checkbox"
-            checked={alert}
-            onChange={(event) => setAlert(event.target.checked)}
-          />
-          {t('rules.field.alert')}
-        </label>
 
         {(tags.data ?? []).length > 0 && (
           <fieldset>
-            <legend>{t('rules.field.tagFilter')}</legend>
-            {(tags.data ?? []).map((tag) => (
-              <label key={tag.id}>
-                <input
-                  type="checkbox"
+            <legend className="text-secondary text-sm">{t('rules.field.tagFilter')}</legend>
+            <div className="mt-1 flex flex-wrap gap-3">
+              {(tags.data ?? []).map((tag) => (
+                <CheckboxField
+                  key={tag.id}
+                  label={tag.name}
                   checked={tagFilter.includes(tag.id)}
                   onChange={(event) =>
                     setTagFilter((current) =>
@@ -213,29 +265,34 @@ function AddRuleForm({ t }: { t: Translate }): ReactNode {
                     )
                   }
                 />
-                {tag.name}
-              </label>
-            ))}
+              ))}
+            </div>
           </fieldset>
         )}
 
-        <button type="submit" disabled={create.isPending || pattern.trim() === ''}>
+        <Button
+          type="submit"
+          variant="primary"
+          disabled={create.isPending || pattern.trim() === ''}
+        >
           {create.isPending ? t('rules.adding') : t('rules.add')}
-        </button>
+        </Button>
       </form>
 
       {create.error !== null && (
-        <p role="alert">{t('error.generic', { message: create.error.message })}</p>
+        <div className="mt-3">
+          <Notice tone="error">{t('error.generic', { message: create.error.message })}</Notice>
+        </div>
       )}
       {create.isSuccess && (
-        <>
-          <p role="status">{t('rules.added')}</p>
-          <p>{t('rules.rescoreQueued')}</p>
-        </>
+        <div className="mt-3 space-y-1">
+          <Notice tone="success">{t('rules.added')}</Notice>
+          <p className="text-muted text-xs">{t('rules.rescoreQueued')}</p>
+        </div>
       )}
 
       <TestPanel pattern={pattern} flags={flags} scope={scope} tagFilter={tagFilter} t={t} />
-    </section>
+    </Panel>
   );
 }
 
@@ -244,45 +301,65 @@ function RuleRow({ rule, t }: { rule: Rule; t: Translate }): ReactNode {
   const remove = useDeleteRule();
 
   return (
-    <tr>
-      <td>
-        {rule.name}
+    <TR>
+      <TD className="max-w-xs">
+        <span className="text-primary text-sm font-medium">{rule.name}</span>
         {rule.lastError !== null && (
-          <>
-            <br />
-            {/* A rule that stopped applying has to say why. */}
-            <small role="alert">{t('rules.disabledByBudget', { reason: rule.lastError })}</small>
-          </>
+          // A rule that stopped applying has to say why.
+          <span role="alert" className="text-negative mt-0.5 block text-xs">
+            {t('rules.disabledByBudget', { reason: rule.lastError })}
+          </span>
         )}
-      </td>
-      <td>
-        <code>{rule.pattern}</code>
-        {rule.flags !== '' && <small>{` /${rule.flags}`}</small>}
-      </td>
-      <td>{t(`rules.scope.${rule.scope}`)}</td>
-      <td>{rule.weight}</td>
-      <td>{rule.alert ? '✓' : ''}</td>
-      <td>{rule.active ? t('rules.state.active') : t('rules.state.inactive')}</td>
-      <td>
-        <button
-          type="button"
-          disabled={update.isPending}
-          onClick={() => update.mutate({ id: rule.id, active: !rule.active })}
-        >
-          {rule.active ? t('rules.disable') : t('rules.enable')}
-        </button>{' '}
-        <button
-          type="button"
-          disabled={remove.isPending}
-          onClick={() => {
-            if (!window.confirm(t('rules.delete.confirm', { name: rule.name }))) return;
-            remove.mutate(rule.id);
-          }}
-        >
-          {t('common.delete')}
-        </button>
-      </td>
-    </tr>
+      </TD>
+
+      <TD>
+        <Mono>{rule.pattern}</Mono>
+        {rule.flags !== '' && <span className="text-muted ml-1 text-xs">{`/${rule.flags}`}</span>}
+      </TD>
+
+      <TD>
+        <span className="text-secondary text-xs">{t(`rules.scope.${rule.scope}`)}</span>
+      </TD>
+
+      <TD align="right">
+        {/* A negative weight demotes; the sign is the whole meaning, so it shows. */}
+        <span className={rule.weight < 0 ? 'text-negative' : 'text-primary'}>
+          {rule.weight > 0 ? `+${rule.weight}` : rule.weight}
+        </span>
+      </TD>
+
+      <TD>{rule.alert ? <span className="text-accent text-sm">✓</span> : null}</TD>
+
+      <TD>
+        <span className={rule.active ? 'text-positive text-xs' : 'text-muted text-xs'}>
+          {rule.active ? t('rules.state.active') : t('rules.state.inactive')}
+        </span>
+      </TD>
+
+      <TD align="right">
+        <div className="flex items-center justify-end gap-1">
+          <Button
+            size="sm"
+            variant="ghost"
+            disabled={update.isPending}
+            onClick={() => update.mutate({ id: rule.id, active: !rule.active })}
+          >
+            {rule.active ? t('rules.disable') : t('rules.enable')}
+          </Button>
+          <Button
+            size="sm"
+            variant="danger"
+            disabled={remove.isPending}
+            onClick={() => {
+              if (!window.confirm(t('rules.delete.confirm', { name: rule.name }))) return;
+              remove.mutate(rule.id);
+            }}
+          >
+            {t('common.delete')}
+          </Button>
+        </div>
+      </TD>
+    </TR>
   );
 }
 
@@ -292,43 +369,46 @@ export function Rules(): ReactNode {
 
   return (
     <section>
-      <h2>{t('rules.title')}</h2>
+      <PageHeader title={t('rules.title')} description={t('rules.intro')} />
 
-      <AddRuleForm t={t} />
+      <div className="space-y-5">
+        <AddRuleForm t={t} />
 
-      {rules.isPending && <p>{t('common.loading')}</p>}
+        {rules.isPending && <p className="text-secondary text-sm">{t('common.loading')}</p>}
 
-      {rules.error !== null && (
-        <p role="alert">
-          {t('rules.error')}{' '}
-          <button type="button" onClick={() => void rules.refetch()}>
-            {t('common.retry')}
-          </button>
-        </p>
-      )}
+        {rules.error !== null && (
+          <Notice tone="error">
+            {t('rules.error')}{' '}
+            <button type="button" onClick={() => void rules.refetch()} className="underline">
+              {t('common.retry')}
+            </button>
+          </Notice>
+        )}
 
-      {rules.data !== undefined && rules.data.length === 0 && <p>{t('rules.empty')}</p>}
+        {rules.data !== undefined && rules.data.length === 0 && (
+          <EmptyState message={t('rules.empty')} />
+        )}
 
-      {rules.data !== undefined && rules.data.length > 0 && (
-        <table>
-          <thead>
-            <tr>
-              <th>{t('rules.column.name')}</th>
-              <th>{t('rules.column.pattern')}</th>
-              <th>{t('rules.column.scope')}</th>
-              <th>{t('rules.column.weight')}</th>
-              <th>{t('rules.column.alert')}</th>
-              <th>{t('rules.column.state')}</th>
-              <th>{t('sources.column.actions')}</th>
-            </tr>
-          </thead>
-          <tbody>
+        {rules.data !== undefined && rules.data.length > 0 && (
+          <Table
+            head={
+              <>
+                <TH>{t('rules.column.name')}</TH>
+                <TH>{t('rules.column.pattern')}</TH>
+                <TH>{t('rules.column.scope')}</TH>
+                <TH align="right">{t('rules.column.weight')}</TH>
+                <TH>{t('rules.column.alert')}</TH>
+                <TH>{t('rules.column.state')}</TH>
+                <TH align="right">{t('sources.column.actions')}</TH>
+              </>
+            }
+          >
             {rules.data.map((rule) => (
               <RuleRow key={rule.id} rule={rule} t={t} />
             ))}
-          </tbody>
-        </table>
-      )}
+          </Table>
+        )}
+      </div>
     </section>
   );
 }

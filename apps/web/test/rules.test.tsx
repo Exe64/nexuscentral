@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Rules } from '../src/pages/Rules.tsx';
 import { Reader } from '../src/pages/Reader.tsx';
@@ -278,7 +278,11 @@ describe('the score breakdown popover', () => {
 
     const popover = await screen.findByRole('dialog', { name: 'Why this score' });
     expect(popover).toBeDefined();
-    expect(screen.getByText('CVE mentions: +5.00')).toBeDefined();
+    // The name and the weight are separate elements so a negative weight can be
+    // coloured -- the sign is the whole meaning of a rule that demotes.
+    const named = within(popover).getByText('CVE mentions');
+    expect(named).toBeDefined();
+    expect(named.parentElement?.textContent).toContain('+5.00');
     expect(screen.getByText(/1\.00 \+ 5\.00 \+ 1\.35.*1\.50.*0\.79/)).toBeDefined();
   });
 

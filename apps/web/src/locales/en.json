@@ -333,5 +333,13 @@
   "widget.custom_api.render.list_with_meta": "List with detail",
   "widget.custom_api.render.single_value": "Single value",
   "widget.custom_api.render.key_values": "Key and value",
-  "widget.custom_api.ttl": "Cache for (minutes)"
+  "widget.custom_api.ttl": "Cache for (minutes)",
+  "tags.intro": "Tags group sources. A widget or a rule can then filter on a tag rather than on a list of sources.",
+  "tags.add.title": "Add a tag",
+  "sources.intro": "Feeds, subreddits and X accounts. Everything lands in one item store and is scored by the same rules.",
+  "sources.add.title": "Add a source",
+  "sources.add.intro": "Paste a feed URL, a blog address, r/subreddit or an @handle. The preview shows real items before anything is saved.",
+  "sources.list.title": "Tracked sources",
+  "settings.retention.intro": "How long items are kept. The nightly purge runs at 03:00.",
+  "settings.retention.starredNote": "Starred items are never deleted, however old."
 }
