@@ -12,6 +12,7 @@ import { listDueSourceIds } from '../db/sources.js';
 import { pollSource } from '../ingest/runner.js';
 import { refreshScores, rescoreRecent, scoreItems } from '../scoring/rescore.js';
 import { deliverPendingAlerts, MIN_INTERVAL_MS } from '../alerts/deliver.js';
+import { purgeOldItems, purgeRawPayloads, vacuumItems } from '../retention/jobs.js';
 import {
   DELIVER_DEBOUNCE_SECONDS,
   DELIVER_TIMEOUT_SECONDS,
@@ -249,6 +250,21 @@ async function handleDeliverAlerts(): Promise<void> {
   log.info({ sent: outcome.sent }, 'Alert notification sent');
 }
 
+/** `retention:items` -- nightly purge of everything past the window. */
+async function handleRetentionItems(): Promise<void> {
+  await purgeOldItems();
+}
+
+/** `retention:raw` -- nightly, drop upstream payloads nobody will debug now. */
+async function handleRetentionRaw(): Promise<void> {
+  await purgeRawPayloads();
+}
+
+/** `vacuum:analyze` -- weekly, so the planner keeps choosing the indexes. */
+async function handleVacuum(): Promise<void> {
+  await vacuumItems();
+}
+
 export async function startWorker(): Promise<PgBoss> {
   if (boss !== null) return boss;
   // Assigned synchronously so a concurrent enqueue has something to await.
@@ -289,6 +305,9 @@ async function start(): Promise<PgBoss> {
   await instance.work(QUEUE.scoreItems, { batchSize: SCORE_BATCH_SIZE }, handleScoreItems);
   await instance.work(QUEUE.rescoreAll, { batchSize: 1 }, handleRescoreAll);
   await instance.work(QUEUE.scoreRefresh, { batchSize: 1 }, handleScoreRefresh);
+  await instance.work(QUEUE.retentionItems, { batchSize: 1 }, handleRetentionItems);
+  await instance.work(QUEUE.retentionRaw, { batchSize: 1 }, handleRetentionRaw);
+  await instance.work(QUEUE.vacuumAnalyze, { batchSize: 1 }, handleVacuum);
   await instance.work(QUEUE.deliverAlerts, { batchSize: 1 }, handleDeliverAlerts);
 
   // Every minute. The tick itself is cheap; the jitter on each enqueued poll is
@@ -296,6 +315,13 @@ async function start(): Promise<PgBoss> {
   await instance.schedule(QUEUE.pollTick, '* * * * *');
   // Hourly, because the decay term drifts with time even when nothing changed.
   await instance.schedule(QUEUE.scoreRefresh, '7 * * * *');
+
+  // Nightly, ten minutes apart so the raw purge is not fighting the delete for
+  // locks on the same table (01-SPEC-data-model.md 3).
+  await instance.schedule(QUEUE.retentionItems, '0 3 * * *');
+  await instance.schedule(QUEUE.retentionRaw, '10 3 * * *');
+  // Weekly, after a night of deletes rather than before one.
+  await instance.schedule(QUEUE.vacuumAnalyze, '30 3 * * 0');
 
   boss = instance;
   log.info({ concurrency: POLL_CONCURRENCY }, 'Worker started');

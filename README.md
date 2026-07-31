@@ -17,7 +17,7 @@ in that order; `05-BUILD-PLAN.md` defines the phase order and the acceptance cri
 
 ## Status
 
-**Phase 6 — alerting and custom API widgets. Complete.**
+**Phase 7 — hardening. Complete.** Every phase in the build plan is done.
 
 Working today: alert delivery to ntfy, Gotify, Discord or a generic webhook; `custom_api`
 widgets that proxy any JSON endpoint through the server; the dashboard grid with drag, resize
@@ -28,7 +28,8 @@ the resolve preview; RSS/Atom, Reddit and best-effort X (via Nitter) adapters; t
 scheduler with per-source backoff; deduplication; deterministic weighted scoring with an
 explainable breakdown; rules with a live test panel; and OPML import and export.
 
-Not yet built: retention and vacuum jobs, and full-text search wired into the reader (Phase 7).
+Retention, vacuum and the load check landed in Phase 7. What is left is whatever using it
+turns up.
 
 ### Theming
 
@@ -195,6 +196,54 @@ the `.String "field"` accessors the template reads. It prints a draft config and
 guesses it made. It does not interpret the Go template — that is unbounded work for no benefit
 — and it never emits markup. Glance is AGPL-3.0, and a URL with a set of field names is a fact
 rather than expression; keeping template HTML out of this is deliberate.
+
+### Retention
+
+| Job               | When           | What                                                |
+| ----------------- | -------------- | --------------------------------------------------- |
+| `retention:items` | daily, 03:00   | Delete unstarred items past `items_retention_days`  |
+| `retention:raw`   | daily, 03:10   | Null `raw` on anything fetched more than 7 days ago |
+| `vacuum:analyze`  | weekly, Sunday | `VACUUM ANALYZE items`                              |
+
+**A starred item is never deleted, however old.** Starring is the user saying "keep this", and
+a retention policy that overrules it is a bug people discover exactly once.
+
+The purge deletes in batches of 5,000 rather than one statement: 100k rows in a single
+transaction holds a long lock on the table the reader is querying, and `alerts` cascades from
+it. Several smaller transactions leave gaps for everything else. `raw` goes after a week
+because it exists to debug an adapter, which is something you do days after a poll rather than
+months. The weekly vacuum is not optional at this rate of deletion — without refreshed
+statistics the planner starts preferring sequential scans over the indexes the reader depends
+on.
+
+### Measured at scale
+
+100 sources and 200,000 items, timed through the HTTP layer rather than against the query, so
+the number includes the filter, the keyset, the source join, the tag denormalisation and the
+serialisation:
+
+| Query                    | Time  |
+| ------------------------ | ----- |
+| First page, newest first | 8 ms  |
+| Page 11, via the cursor  | 7 ms  |
+| Sorted by score          | 6 ms  |
+| Unread only              | 7 ms  |
+| Filtered by tag          | 9 ms  |
+| Full-text search         | 9 ms  |
+| Search + filter + sort   | 6 ms  |
+| Dashboard, three widgets | 32 ms |
+
+The budget was 200 ms. Purging 100k rows took 2.4 s across 20 batches.
+
+These are asserted, not printed: a performance test that only logs is one that fails silently
+the day it regresses. The bar is the spec's 200 ms rather than whatever this machine does
+today, so it does not become a benchmark of the CI host.
+
+One assertion is worth more than the timings — the search test reads the query plan and
+requires `items_search_idx`. The expression in the data layer has to match the index
+definition exactly or PostgreSQL silently ignores it, and at 200k rows that is the difference
+between 9 ms and a sequential scan. Nothing about the API's behaviour would change, which is
+what makes it worth a test.
 
 ### Keyboard
 

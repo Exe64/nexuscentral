@@ -91,6 +91,9 @@ const EXPECTED_QUEUES = [
   'score:items',
   'rescore:all',
   'score:refresh',
+  'retention:items',
+  'retention:raw',
+  'vacuum:analyze',
   'deliver:alerts',
 ];
 
@@ -100,9 +103,19 @@ describe('startWorker', () => {
     await worker.startWorker();
 
     expect(state.queues).toEqual(EXPECTED_QUEUES);
-    // A queue with no handler would accept jobs and never run them.
-    expect(state.workRegistrations).toEqual(EXPECTED_QUEUES);
-    expect(state.schedules).toEqual(['poll:tick', 'score:refresh']);
+    // A queue with no handler would accept jobs and never run them. Compared as
+    // a set: which order handlers are registered in is arbitrary, and pinning it
+    // in two places just means editing both when one moves.
+    expect([...state.workRegistrations].sort()).toEqual([...EXPECTED_QUEUES].sort());
+    expect(state.schedules).toEqual([
+      'poll:tick',
+      'score:refresh',
+      // Nightly, ten minutes apart so the raw purge is not fighting the delete
+      // for locks; the vacuum runs weekly, after a night of deletes.
+      'retention:items',
+      'retention:raw',
+      'vacuum:analyze',
+    ]);
 
     await worker.stopWorker();
   });

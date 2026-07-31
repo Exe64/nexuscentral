@@ -12,6 +12,9 @@ beforeEach(async () => {
 });
 afterAll(closeDatabase);
 
+/** Nothing listens on port 1, so a fetch here fails at once and needs no network. */
+const UNREACHABLE = 'http://127.0.0.1:1/never';
+
 async function makeDashboard(name = 'Home'): Promise<number> {
   const res = await agent.post('/api/dashboards').send({ name });
   expect(res.status).toBe(201);
@@ -76,14 +79,16 @@ describe('POST /api/widgets', () => {
     expect(res.body.error.code).toBe('VALIDATION_FAILED');
   });
 
-  it('refuses a type this build cannot render', async () => {
+  it('refuses a custom_api widget with no URL, which could only ever error', async () => {
     const dashboardId = await makeDashboard();
     const res = await agent
       .post('/api/widgets')
-      .send({ dashboardId, type: 'custom_api', title: 'Weather', config: { url: 'https://x' } });
+      .send({ dashboardId, type: 'custom_api', title: 'Weather', config: { url: '' } });
 
+    // The type itself was refused outright until Phase 6. Now the only thing that
+    // makes one unusable is an empty URL, and that is caught at the boundary.
     expect(res.status).toBe(400);
-    expect(res.body.error.message).toContain('custom_api');
+    expect(res.body.error.message).toContain('URL');
   });
 
   it('404s when the dashboard does not exist', async () => {
@@ -196,14 +201,14 @@ describe('GET /api/dashboards/:id/data', () => {
     const dashboardId = await makeDashboard();
     const ok = await makeWidget(dashboardId);
 
-    // A widget type with no resolver in this build. It cannot be created through
-    // the API, so it is written straight to the table -- which is exactly the
-    // state a downgrade would leave behind.
+    // A widget whose resolver cannot succeed: nothing listens on port 1, so the
+    // connection is refused immediately. Port 1 rather than a real host, so this
+    // needs no network and cannot pass or fail on someone else's uptime.
     const broken = await scalar<number>(
       `INSERT INTO widgets (dashboard_id, type, title, config, layout)
-       VALUES ($1, 'custom_api', 'Weather', '{"url":"https://example.com"}'::jsonb, '{}'::jsonb)
+       VALUES ($1, 'custom_api', 'Weather', $2::jsonb, '{}'::jsonb)
        RETURNING id`,
-      [dashboardId],
+      [dashboardId, JSON.stringify({ url: UNREACHABLE })],
     );
 
     const res = await agent.get(`/api/dashboards/${dashboardId}/data`);
@@ -232,9 +237,9 @@ describe('GET /api/dashboards/:id/data', () => {
     const dashboardId = await makeDashboard();
     await scalar<number>(
       `INSERT INTO widgets (dashboard_id, type, title, config, layout)
-       VALUES ($1, 'custom_api', 'Weather', '{"url":"https://example.com"}'::jsonb, '{}'::jsonb)
+       VALUES ($1, 'custom_api', 'Weather', $2::jsonb, '{}'::jsonb)
        RETURNING id`,
-      [dashboardId],
+      [dashboardId, JSON.stringify({ url: UNREACHABLE })],
     );
 
     await agent.get(`/api/dashboards/${dashboardId}/data`);
@@ -278,14 +283,14 @@ describe('POST /api/widgets/:id/data', () => {
 });
 
 describe('GET /api/widget-types', () => {
-  it('offers only the types this build can render', async () => {
+  it('offers every type this build can render, custom_api included', async () => {
     const res = await agent.get('/api/widget-types');
     const types = res.body.data.map((entry: { type: string }) => entry.type);
 
     expect(types).toContain('feed');
-    // custom_api arrives in Phase 6; offering it now would let a user add a widget
-    // that renders as an error.
-    expect(types).not.toContain('custom_api');
+    // Withheld until Phase 6, because offering a type the client cannot render
+    // would let a user add a widget that only ever shows an error.
+    expect(types).toContain('custom_api');
   });
 
   it('reports geometry and a default config for each type', async () => {

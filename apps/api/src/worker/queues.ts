@@ -20,6 +20,12 @@ export const QUEUE = {
   scoreRefresh: 'score:refresh',
   /** Push whatever alerts are pending, as one grouped notification. */
   deliverAlerts: 'deliver:alerts',
+  /** Nightly: delete unstarred items past the retention window. */
+  retentionItems: 'retention:items',
+  /** Nightly: drop the stored upstream payload once it stops being useful. */
+  retentionRaw: 'retention:raw',
+  /** Weekly: refresh the statistics the reader's indexes depend on. */
+  vacuumAnalyze: 'vacuum:analyze',
 } as const;
 
 /** Concurrent `poll:source` jobs (02-SPEC-ingestion.md 7). */
@@ -60,6 +66,13 @@ export const SCORE_BATCH_SIZE = 10;
 export const DELIVER_DEBOUNCE_SECONDS = 10;
 
 export const DELIVER_TIMEOUT_SECONDS = 120;
+
+/**
+ * Retention runs against the whole table, and a vacuum on a large one is not
+ * quick. Generous, because being killed halfway through a batched delete leaves
+ * the work half done and the next run has to redo it.
+ */
+export const RETENTION_TIMEOUT_SECONDS = 1_800;
 
 export interface PollSourceData {
   sourceId: number;
@@ -117,6 +130,26 @@ export const QUEUE_DEFINITIONS: PgBoss.Queue[] = [
     policy: 'short',
     retryLimit: 0,
     expireInSeconds: RESCORE_TIMEOUT_SECONDS,
+  },
+  {
+    name: QUEUE.retentionItems,
+    policy: 'short',
+    // No retry: the next run is tomorrow, and a purge that failed on a lock will
+    // simply pick up the same rows then.
+    retryLimit: 0,
+    expireInSeconds: RETENTION_TIMEOUT_SECONDS,
+  },
+  {
+    name: QUEUE.retentionRaw,
+    policy: 'short',
+    retryLimit: 0,
+    expireInSeconds: RETENTION_TIMEOUT_SECONDS,
+  },
+  {
+    name: QUEUE.vacuumAnalyze,
+    policy: 'short',
+    retryLimit: 0,
+    expireInSeconds: RETENTION_TIMEOUT_SECONDS,
   },
   {
     name: QUEUE.deliverAlerts,
