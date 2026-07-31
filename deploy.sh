@@ -134,6 +134,17 @@ if [[ "${CREDENTIALS:-0}" == 0 ]]; then
   if [[ "${#AUTH_PASSWORD_VALUE}" -lt 12 ]]; then
     fail "AUTH_PASSWORD is shorter than 12 characters; the app will reject it and exit."
   fi
+
+  # Compose expands `$` in .env values when a name follows it, so `hunter$secret`
+  # reaches the container as `hunter` and the stored hash is for a password nobody
+  # typed. `$2` and `$!` are literal, but the distinction is not worth relying on.
+  if [[ "$AUTH_PASSWORD_VALUE" =~ \$[A-Za-z_\{] ]]; then
+    fail "AUTH_PASSWORD contains \$ followed by a name, which Compose expands on the way
+   to the container -- it would store a shorter password than you wrote.
+   Leave AUTH_PASSWORD out entirely and set it after this deploy with:
+     docker compose exec -it api node dist/cli/set-password.js"
+  fi
+
   log "First deploy: the password from AUTH_PASSWORD will be stored on boot."
 elif [[ -n "$AUTH_PASSWORD_VALUE" ]]; then
   # Not fatal -- the app ignores it once a credential exists. Still worth saying:

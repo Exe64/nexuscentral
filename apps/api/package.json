@@ -8,6 +8,8 @@
     "build": "tsc -p tsconfig.build.json",
     "dev": "tsx watch src/index.ts",
     "start": "node dist/index.js",
+    "set-password": "node dist/cli/set-password.js",
+    "auth-status": "node dist/cli/auth-status.js",
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run",
     "test:watch": "vitest",

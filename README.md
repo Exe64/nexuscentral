@@ -111,6 +111,35 @@ Changing the password revokes every other session, because the usual reason to c
 that someone else has it. Changing it requires the current one even from an open session, so
 a borrowed session cannot lock the owner out.
 
+#### Setting and resetting the password
+
+```bash
+docker compose exec -it api node dist/cli/set-password.js        # prompts, hidden
+printf '%s' "$PW" | docker compose exec -T api node dist/cli/set-password.js
+```
+
+This is the recommended way to set it in the first place — nothing is written to `.env` — and
+the only way back in if you are locked out. It revokes every session. `node` rather than
+`pnpm`: the image activates pnpm through corepack, which wants to reach npmjs the first time
+a non-root user invokes it, and a password reset must not need outbound network.
+
+**`AUTH_PASSWORD` must not contain `$`.** Compose substitutes `$name` and `${name}` in `.env`
+values, so `secret$word` reaches the container as `secret` — and you are locked out by a
+password you never typed. Docker prints `The "word" variable is not set` on the host when this
+happens, and `deploy.sh` now refuses the case outright. A `$` is fine through `set-password`,
+which never goes near Compose.
+
+When a login is refused and you want to know why:
+
+```bash
+docker compose exec -T api node dist/cli/auth-status.js
+```
+
+It reports whether a password is stored and when it was set, how many characters
+`AUTH_PASSWORD` was **as the container received it** — compare that with what you wrote, a
+shorter number means Compose ate a `$` — live sessions, and whether the rate limiter has
+locked you out. It never prints the password or the hash.
+
 `TRUST_PROXY` matters more than it looks: the per-IP limit counts client addresses, and
 without it every request appears to come from the proxy.
 
