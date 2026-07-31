@@ -11,6 +11,7 @@
 import { useState, type ReactNode } from 'react';
 import type { Settings as SettingsShape } from '@nexuscentral/shared';
 import { useSettings, useTestNitter, useTestReddit, useUpdateSettings } from '../api/queries.ts';
+import { AlertsPanel } from '../components/AlertsPanel.tsx';
 import { AppearancePanel } from '../components/AppearancePanel.tsx';
 import { SecurityPanel } from '../components/SecurityPanel.tsx';
 import { useT, type Translate } from '../i18n.tsx';
@@ -71,7 +72,7 @@ function RedditPanel({ settings, t }: { settings: SettingsShape; t: Translate })
         />
 
         <button type="submit" disabled={update.isPending}>
-          {t('common.save')}
+          {t('settings.reddit.save')}
         </button>
       </form>
 
@@ -163,7 +164,7 @@ function NitterPanel({ settings, t }: { settings: SettingsShape; t: Translate })
           onChange={(event) => setText(event.target.value)}
         />
         <button type="submit" disabled={update.isPending}>
-          {t('common.save')}
+          {t('settings.nitter.save')}
         </button>
       </form>
 
@@ -223,7 +224,7 @@ function RetentionPanel({ settings, t }: { settings: SettingsShape; t: Translate
           onChange={(event) => setDays(event.target.value)}
         />
         <button type="submit" disabled={update.isPending}>
-          {t('common.save')}
+          {t('settings.retention.save')}
         </button>
       </form>
     </section>
@@ -251,6 +252,7 @@ export function Settings(): ReactNode {
     <div className="space-y-8">
       <AppearancePanel />
       <SecurityPanel />
+      <AlertsPanel settings={settings.data} t={t} />
       <RedditPanel settings={settings.data} t={t} />
       <NitterPanel settings={settings.data} t={t} />
       <RetentionPanel settings={settings.data} t={t} />

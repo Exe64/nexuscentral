@@ -16,6 +16,7 @@
 
 import type { SourceKind } from '@nexuscentral/shared';
 import { query, transaction } from '../db/pool.js';
+import { createAlerts } from '../db/alerts.js';
 import { activeRuleSpecs, deactivateRuleForTimeout, ruleWeightsById } from '../db/rules.js';
 import { logger } from '../logger.js';
 import { computeScore, type MatchedRule } from './engine.js';
@@ -292,7 +293,49 @@ export async function refreshScores(
   return result;
 }
 
-/** Score a specific set of newly-inserted items. Runs right after ingestion. */
-export async function scoreItems(itemIds: readonly string[]): Promise<ScoringRunResult> {
-  return rescoreRecent({ itemIds });
+/**
+ * Score a specific set of newly-inserted items, and raise alerts for them.
+ *
+ * The only path that creates alerts. `rescoreRecent` on its own never does, which
+ * is what makes "turning on alerting generates zero alerts for existing items"
+ * true by construction rather than by a flag someone has to remember to pass.
+ */
+export async function scoreItems(
+  itemIds: readonly string[],
+): Promise<ScoringRunResult & { alertsRaised: number }> {
+  const result = await rescoreRecent({ itemIds });
+  // Returned rather than dispatched from here: the worker owns the queues, and
+  // reaching back into it from the scoring layer would make the two modules
+  // import each other. See the note at the top of worker/index.ts.
+  const alertsRaised = await raiseAlertsFor(itemIds);
+  return { ...result, alertsRaised };
+}
+
+/**
+ * Insert an alert per (item, rule) pair where the rule alerts.
+ *
+ * Reads `matched_rules` back out of the rows just written rather than threading
+ * the matches through the scoring path: the database is the record of what
+ * matched, and re-deriving it here would be a second implementation of the same
+ * answer.
+ */
+async function raiseAlertsFor(itemIds: readonly string[]): Promise<number> {
+  if (itemIds.length === 0) return 0;
+
+  const { rows } = await query<{ item_id: string; rule_id: number }>(
+    `SELECT i.id AS item_id, r.id AS rule_id
+       FROM items i
+       JOIN rules r ON r.id = ANY(i.matched_rules)
+      WHERE i.id = ANY($1::bigint[]) AND r.alert = true AND r.active = true`,
+    [[...itemIds]],
+  );
+
+  if (rows.length === 0) return 0;
+
+  const created = await createAlerts(
+    rows.map((row) => ({ itemId: row.item_id, ruleId: row.rule_id })),
+  );
+
+  if (created > 0) log.info({ created, candidates: rows.length }, 'Alerts raised');
+  return created;
 }

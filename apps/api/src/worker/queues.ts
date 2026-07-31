@@ -18,6 +18,8 @@ export const QUEUE = {
   rescoreAll: 'rescore:all',
   /** Hourly arithmetic-only recompute, because the decay term drifts. */
   scoreRefresh: 'score:refresh',
+  /** Push whatever alerts are pending, as one grouped notification. */
+  deliverAlerts: 'deliver:alerts',
 } as const;
 
 /** Concurrent `poll:source` jobs (02-SPEC-ingestion.md 7). */
@@ -46,6 +48,18 @@ export const RESCORE_TIMEOUT_SECONDS = 300;
 
 /** How many poll results one scoring job absorbs, to avoid a worker thread each. */
 export const SCORE_BATCH_SIZE = 10;
+
+/**
+ * How long a delivery waits before running.
+ *
+ * This is the grouping window. With the `short` policy below, every alert raised
+ * inside it collapses into the one job already queued, so two polls seconds apart
+ * produce one notification. Short enough that the spec's "delivers within 60 s"
+ * has room for the delivery itself and up to three retries.
+ */
+export const DELIVER_DEBOUNCE_SECONDS = 10;
+
+export const DELIVER_TIMEOUT_SECONDS = 120;
 
 export interface PollSourceData {
   sourceId: number;
@@ -103,5 +117,15 @@ export const QUEUE_DEFINITIONS: PgBoss.Queue[] = [
     policy: 'short',
     retryLimit: 0,
     expireInSeconds: RESCORE_TIMEOUT_SECONDS,
+  },
+  {
+    name: QUEUE.deliverAlerts,
+    // `short` is the grouping: one queued delivery at a time, so a burst of polls
+    // produces one notification rather than one per poll.
+    policy: 'short',
+    // The handler owns the 1s/5s/25s retry, because a queue-level retry would
+    // re-read the pending set and could group differently on the second attempt.
+    retryLimit: 0,
+    expireInSeconds: DELIVER_TIMEOUT_SECONDS,
   },
 ];

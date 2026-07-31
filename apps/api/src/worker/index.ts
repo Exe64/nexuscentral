@@ -11,7 +11,10 @@ import { logger } from '../logger.js';
 import { listDueSourceIds } from '../db/sources.js';
 import { pollSource } from '../ingest/runner.js';
 import { refreshScores, rescoreRecent, scoreItems } from '../scoring/rescore.js';
+import { deliverPendingAlerts, MIN_INTERVAL_MS } from '../alerts/deliver.js';
 import {
+  DELIVER_DEBOUNCE_SECONDS,
+  DELIVER_TIMEOUT_SECONDS,
   POLL_CONCURRENCY,
   POLL_JITTER_SECONDS,
   POLL_TIMEOUT_SECONDS,
@@ -109,6 +112,34 @@ export async function enqueueRescore(reason: string): Promise<string | null> {
   });
 }
 
+/**
+ * Ask for a delivery of whatever alerts are pending.
+ *
+ * The `short` policy plus the delay is the grouping: everything raised inside the
+ * window collapses into the one job already queued, so forty matches across three
+ * polls still produce a single notification.
+ */
+export async function enqueueAlertDelivery(): Promise<string | null> {
+  const instance = await readyBoss();
+  if (instance === null) {
+    // Not an error worth shouting about: the alerts are already in the table and
+    // the widget shows them. Only the push is missing.
+    log.debug('Cannot enqueue alert delivery: no worker is running in this process');
+    return null;
+  }
+
+  return instance.send(
+    QUEUE.deliverAlerts,
+    {},
+    {
+      startAfter: DELIVER_DEBOUNCE_SECONDS,
+      singletonKey: 'all',
+      expireInSeconds: DELIVER_TIMEOUT_SECONDS,
+      retryLimit: 0,
+    },
+  );
+}
+
 /** Score the items a poll just inserted. */
 async function enqueueScoreItems(itemIds: readonly string[]): Promise<void> {
   if (itemIds.length === 0) return;
@@ -158,6 +189,10 @@ async function handleScoreItems(jobs: PgBoss.Job<ScoreItemsData>[]): Promise<voi
 
   const result = await scoreItems(itemIds);
   log.info({ ...result, jobs: jobs.length }, 'Scored newly ingested items');
+
+  // The scoring layer raises the alerts but does not know about queues; asking
+  // for the push here is what keeps the two from importing each other.
+  if (result.alertsRaised > 0) await enqueueAlertDelivery();
 }
 
 /** `rescore:all` -- re-evaluate every pattern over the last 30 days. */
@@ -174,6 +209,44 @@ async function handleRescoreAll(jobs: PgBoss.Job<RescoreData>[]): Promise<void> 
 async function handleScoreRefresh(): Promise<void> {
   const result = await refreshScores();
   log.info(result, 'Refreshed scores');
+}
+
+/**
+ * `deliver:alerts` -- push everything pending as one notification.
+ *
+ * When the last push was under a minute ago the delivery re-queues itself for the
+ * remainder rather than sending. The alerts stay pending and the widget keeps
+ * showing them, so nothing is lost by waiting.
+ */
+async function handleDeliverAlerts(): Promise<void> {
+  const outcome = await deliverPendingAlerts();
+
+  if (outcome.skipped === 'too-soon') {
+    const instance = await readyBoss();
+    await instance?.send(
+      QUEUE.deliverAlerts,
+      {},
+      {
+        startAfter: Math.ceil((outcome.retryInMs ?? MIN_INTERVAL_MS) / 1000),
+        singletonKey: 'all',
+        expireInSeconds: DELIVER_TIMEOUT_SECONDS,
+        retryLimit: 0,
+      },
+    );
+    log.debug({ retryInMs: outcome.retryInMs }, 'Alert delivery deferred to respect the interval');
+    return;
+  }
+
+  if (outcome.skipped !== null) {
+    log.debug({ skipped: outcome.skipped }, 'Nothing delivered');
+    return;
+  }
+
+  // A failure is already recorded on the rows and logged by the deliverer; the
+  // job itself succeeds so the queue's failure count stays meaningful.
+  if (outcome.error !== undefined) return;
+
+  log.info({ sent: outcome.sent }, 'Alert notification sent');
 }
 
 export async function startWorker(): Promise<PgBoss> {
@@ -216,6 +289,7 @@ async function start(): Promise<PgBoss> {
   await instance.work(QUEUE.scoreItems, { batchSize: SCORE_BATCH_SIZE }, handleScoreItems);
   await instance.work(QUEUE.rescoreAll, { batchSize: 1 }, handleRescoreAll);
   await instance.work(QUEUE.scoreRefresh, { batchSize: 1 }, handleScoreRefresh);
+  await instance.work(QUEUE.deliverAlerts, { batchSize: 1 }, handleDeliverAlerts);
 
   // Every minute. The tick itself is cheap; the jitter on each enqueued poll is
   // what spreads the actual work out.

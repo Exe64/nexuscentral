@@ -1,10 +1,9 @@
 /**
- * Alert persistence, read side.
+ * Alert persistence.
  *
- * Nothing writes to this table yet: delivery and the rules that create alerts are
- * Phase 6. The reads exist now because the `alerts` widget needs them, and a widget
- * that says "No alerts. Turn on alerting in a rule to get notified here." is a
- * better empty state than a placeholder.
+ * Alerts are created in exactly one place -- the scoring pass over newly inserted
+ * items -- and never by a rescore. Turning on alerting for a rule must not fire
+ * hundreds of notifications about things already read (02-SPEC-ingestion.md 6).
  */
 
 import type { Alert, Item, SourceKind, Tag } from '@nexuscentral/shared';
@@ -111,6 +110,113 @@ export async function listAlerts(options: ListAlertsOptions = {}): Promise<Alert
 
   const tags = await tagsBySourceId([...new Set(rows.map((row) => row.source_id))]);
   return rows.map((row) => toAlert(row, tags.get(row.source_id) ?? []));
+}
+
+/**
+ * Create one alert per (item, rule) pair where the rule alerts.
+ *
+ * `ON CONFLICT DO NOTHING` against `alerts_unique`: an item rescored, or a poll
+ * replayed after a crash, must not produce a second notification for the same
+ * match. Returns how many rows were genuinely new, which is what decides whether
+ * a delivery is worth enqueueing at all.
+ */
+export async function createAlerts(
+  pairs: readonly { itemId: string; ruleId: number }[],
+): Promise<number> {
+  if (pairs.length === 0) return 0;
+
+  const result = await query(
+    `INSERT INTO alerts (item_id, rule_id)
+     SELECT * FROM unnest($1::bigint[], $2::int[])
+     ON CONFLICT ON CONSTRAINT alerts_unique DO NOTHING`,
+    [pairs.map((pair) => pair.itemId), pairs.map((pair) => pair.ruleId)],
+  );
+  return result.rowCount ?? 0;
+}
+
+export interface PendingAlert {
+  id: string;
+  itemTitle: string;
+  itemUrl: string;
+  itemSummary: string | null;
+  sourceTitle: string;
+  ruleName: string;
+  score: number;
+  createdAt: string;
+}
+
+/**
+ * Alerts waiting to be pushed, oldest first.
+ *
+ * Deliberately includes alerts that failed before: `delivery_error` records what
+ * went wrong but the row stays pending, so a webhook that was down for an hour
+ * catches up rather than silently dropping everything from that hour.
+ */
+export async function pendingAlerts(limit: number): Promise<PendingAlert[]> {
+  const { rows } = await query<{
+    id: string;
+    title: string;
+    url: string;
+    summary: string | null;
+    source_title: string;
+    rule_name: string;
+    score: number;
+    created_at: Date;
+  }>(
+    `SELECT a.id, i.title, i.url, i.summary, s.title AS source_title,
+            r.name AS rule_name, i.score, a.created_at
+       FROM alerts a
+       JOIN items i ON i.id = a.item_id
+       JOIN sources s ON s.id = i.source_id
+       JOIN rules r ON r.id = a.rule_id
+      WHERE a.delivered_at IS NULL
+      ORDER BY a.created_at ASC, a.id ASC
+      LIMIT $1`,
+    [limit],
+  );
+
+  return rows.map((row) => ({
+    id: row.id,
+    itemTitle: row.title,
+    itemUrl: row.url,
+    itemSummary: row.summary,
+    sourceTitle: row.source_title,
+    ruleName: row.rule_name,
+    score: Number(row.score),
+    createdAt: row.created_at.toISOString(),
+  }));
+}
+
+export async function countPendingAlerts(): Promise<number> {
+  const { rows } = await query<{ n: number }>(
+    `SELECT count(*)::int AS n FROM alerts WHERE delivered_at IS NULL`,
+  );
+  return rows[0]?.n ?? 0;
+}
+
+export async function markDelivered(ids: readonly string[]): Promise<number> {
+  if (ids.length === 0) return 0;
+  const result = await query(
+    `UPDATE alerts SET delivered_at = now(), delivery_error = NULL
+      WHERE id = ANY($1::bigint[])`,
+    [[...ids]],
+  );
+  return result.rowCount ?? 0;
+}
+
+/**
+ * Record why delivery failed, leaving the row pending.
+ *
+ * The in-app widget stays the source of truth (02-SPEC-ingestion.md 6): a failed
+ * push must never mean a lost alert.
+ */
+export async function markDeliveryFailed(ids: readonly string[], error: string): Promise<number> {
+  if (ids.length === 0) return 0;
+  const result = await query(`UPDATE alerts SET delivery_error = $2 WHERE id = ANY($1::bigint[])`, [
+    [...ids],
+    error.slice(0, 500),
+  ]);
+  return result.rowCount ?? 0;
 }
 
 export async function acknowledgeAlert(id: string): Promise<boolean> {

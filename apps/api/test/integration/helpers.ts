@@ -21,9 +21,17 @@ export const TEST_PASSWORD = 'integration-test-password';
  */
 export const agent: TestAgent = request.agent(app);
 
+/**
+ * `settings` is in here too, and that is not obvious.
+ *
+ * It is a singleton row created by the first migration, so truncating it looks
+ * wrong -- but `getRawSettings` recreates it on demand with the column defaults,
+ * and leaving it alone means a webhook or retention value set by one test leaks
+ * into every test that runs after it. That leak cost an afternoon once already.
+ */
 const TABLES = `
   alerts, items, rules, source_tags, sources, tags, widgets, dashboards,
-  sessions, auth_attempts, auth_credential
+  sessions, auth_attempts, auth_credential, settings
 `;
 
 /** Truncate everything and leave no credential behind. */

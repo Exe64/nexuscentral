@@ -19,6 +19,7 @@ import { redditBudget } from '../../adapters/reddit/budget.js';
 import { RedditTokenCache, redditTokenCache, RedditAuthError } from '../../adapters/reddit/auth.js';
 import { redditGet, RedditApiError } from '../../adapters/reddit/client.js';
 import { probeNitterInstance } from '../../adapters/nitter/probe.js';
+import { sendTestNotification } from '../../alerts/deliver.js';
 import { HttpError } from '../errors.js';
 import { absoluteUrl, parseBody } from '../validation.js';
 
@@ -164,6 +165,37 @@ settingsRouter.post('/settings/test-nitter', async (_req, res) => {
       ok: instances.some((instance) => instance.ok),
       origin,
       instances,
+    },
+  });
+});
+
+/**
+ * `POST /api/settings/test-webhook` -- send a real notification, now.
+ *
+ * One attempt rather than the delivery job's three: the user is watching, and
+ * waiting thirty-one seconds to be told the URL is wrong is worse than being told
+ * straight away. Nothing is written to the `alerts` table.
+ */
+settingsRouter.post('/settings/test-webhook', async (_req, res) => {
+  const settings = await getRawSettings();
+
+  if (settings.alertWebhookKind === 'none' || settings.alertWebhookUrl === null) {
+    res.json({
+      data: {
+        ok: false,
+        reason: 'not_configured',
+        message: 'No delivery target is configured. Alerts stay in the dashboard only.',
+      },
+    });
+    return;
+  }
+
+  const result = await sendTestNotification();
+  res.json({
+    data: {
+      ok: result.ok,
+      kind: settings.alertWebhookKind,
+      ...(result.error === undefined ? {} : { message: result.error }),
     },
   });
 });

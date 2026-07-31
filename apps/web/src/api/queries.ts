@@ -31,6 +31,7 @@ import type {
   TagWithCounts,
   ThemeMode,
   ThemePreset,
+  WebhookKind,
   Widget,
   WidgetType,
 } from '@nexuscentral/shared';
@@ -645,6 +646,9 @@ export interface SettingsPatchBody {
   redditClientSecret?: string | null;
   nitterBaseUrls?: string[];
   itemsRetentionDays?: number;
+  alertWebhookKind?: WebhookKind;
+  /** Null clears the target; the API rejects a kind other than `none` without one. */
+  alertWebhookUrl?: string | null;
 }
 
 export function useUpdateSettings(): UseMutationResult<Settings, Error, SettingsPatchBody> {
@@ -673,6 +677,22 @@ export function useTestReddit(): UseMutationResult<RedditTestResult, Error, void
   return useMutation({
     mutationFn: async () =>
       (await apiFetch<Envelope<RedditTestResult>>('/settings/test-reddit', { method: 'POST' }))
+        .data,
+  });
+}
+
+export interface WebhookTestResult {
+  ok: boolean;
+  kind?: WebhookKind;
+  reason?: string;
+  message?: string;
+}
+
+/** Sends a real notification. Nothing is written to the alerts table. */
+export function useTestWebhook(): UseMutationResult<WebhookTestResult, Error, void> {
+  return useMutation({
+    mutationFn: async () =>
+      (await apiFetch<Envelope<WebhookTestResult>>('/settings/test-webhook', { method: 'POST' }))
         .data,
   });
 }

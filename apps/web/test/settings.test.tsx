@@ -75,7 +75,7 @@ describe('Reddit panel', () => {
     renderPage(<Settings />);
 
     await userEvent.type(await screen.findByLabelText('Client ID'), 'client-abc');
-    await userEvent.click(screen.getAllByRole('button', { name: 'Save' })[0]!);
+    await userEvent.click(screen.getByRole('button', { name: 'Save Reddit credentials' }));
 
     await waitFor(() => {
       const patch = vi
@@ -248,7 +248,7 @@ describe('Nitter panel', () => {
       textarea,
       'https://nitter.mydomain.tld{enter}{enter}  https://nitter.backup.example.net  ',
     );
-    await userEvent.click(screen.getAllByRole('button', { name: 'Save' })[1]!);
+    await userEvent.click(screen.getByRole('button', { name: 'Save instances' }));
 
     await waitFor(() => {
       const patch = vi

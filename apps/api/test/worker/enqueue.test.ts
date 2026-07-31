@@ -80,15 +80,28 @@ async function loadWorker(): Promise<typeof WorkerModule> {
   return import('../../src/worker/index.js');
 }
 
+/**
+ * Spelled out rather than derived from QUEUE_DEFINITIONS: adding a queue should
+ * mean editing this line and thinking about whether it needs a handler and a
+ * schedule. Derived, it would pass silently for a queue nobody wired up.
+ */
+const EXPECTED_QUEUES = [
+  'poll:tick',
+  'poll:source',
+  'score:items',
+  'rescore:all',
+  'score:refresh',
+  'deliver:alerts',
+];
+
 describe('startWorker', () => {
   it('creates every queue, registers a handler for each and schedules the crons', async () => {
     const worker = await loadWorker();
     await worker.startWorker();
 
-    const expected = ['poll:tick', 'poll:source', 'score:items', 'rescore:all', 'score:refresh'];
-    expect(state.queues).toEqual(expected);
+    expect(state.queues).toEqual(EXPECTED_QUEUES);
     // A queue with no handler would accept jobs and never run them.
-    expect(state.workRegistrations).toEqual(expected);
+    expect(state.workRegistrations).toEqual(EXPECTED_QUEUES);
     expect(state.schedules).toEqual(['poll:tick', 'score:refresh']);
 
     await worker.stopWorker();
@@ -100,7 +113,7 @@ describe('startWorker', () => {
     const second = await worker.startWorker();
 
     expect(second).toBe(first);
-    expect(state.queues).toHaveLength(5);
+    expect(state.queues).toHaveLength(EXPECTED_QUEUES.length);
 
     await worker.stopWorker();
   });
@@ -112,7 +125,7 @@ describe('startWorker', () => {
     const [a, b] = await Promise.all([worker.startWorker(), worker.startWorker()]);
 
     expect(a).toBe(b);
-    expect(state.queues).toHaveLength(5);
+    expect(state.queues).toHaveLength(EXPECTED_QUEUES.length);
 
     await worker.stopWorker();
   });
@@ -168,7 +181,7 @@ describe('enqueuePoll during startup', () => {
     // a replay of the first failure.
     state.startShouldFail = false;
     await expect(worker.startWorker()).resolves.toBeDefined();
-    expect(state.queues).toHaveLength(5);
+    expect(state.queues).toHaveLength(EXPECTED_QUEUES.length);
 
     await worker.stopWorker();
   });
