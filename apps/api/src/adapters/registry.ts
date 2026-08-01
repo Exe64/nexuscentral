@@ -7,7 +7,8 @@
  */
 
 import type { ResolvedSource, SourceAdapter, SourceKind } from '@nexuscentral/shared';
-import { rssAdapter } from './rss/index.js';
+import { normalizeInputUrl, rssAdapter } from './rss/index.js';
+import { redditFeedUrl } from './rss/reddit.js';
 import { redditAdapter, RedditNotConfiguredError } from './reddit/index.js';
 import { nitterAdapter, NitterNotConfiguredError } from './nitter/index.js';
 import { HttpError } from '../http/errors.js';
@@ -89,11 +90,37 @@ export async function resolveInput(input: string): Promise<ResolvedSource[]> {
   try {
     return await adapter.resolve(detected.identifier ?? input);
   } catch (err) {
-    // Missing credentials are the operator's to fix, not an upstream failure, and
-    // must not read as a 502 with a message about the network.
-    if (err instanceof RedditNotConfiguredError || err instanceof NitterNotConfiguredError) {
+    // A subreddit without credentials is not a dead end: the public Atom feed
+    // needs none. Refusing here would be the wrong answer to the wrong question,
+    // since OAuth registration takes weeks and the feed works today. What the
+    // fallback cannot carry is `ups` and `num_comments`, so these resolve as
+    // `rss` sources with no engagement term -- which is exactly what they are,
+    // and what makes moving them to `reddit` worthwhile once credentials exist.
+    if (err instanceof RedditNotConfiguredError) {
+      return await rssAdapter.resolve(redditFallbackUrl(input, detected.identifier));
+    }
+
+    // Nitter has no such fallback: the instance list *is* the fallback. Missing
+    // configuration is the operator's to fix, not an upstream failure, and must
+    // not read as a 502 with a message about the network.
+    if (err instanceof NitterNotConfiguredError) {
       throw HttpError.validation(err.message, { kind: detected.kind, configured: false });
     }
     throw err;
   }
+}
+
+/**
+ * The feed URL to try when Reddit credentials are missing.
+ *
+ * Prefers the input, because `detectKind` reduces a URL to a bare subreddit name
+ * and that throws away the listing and the query: `/r/x/top?t=week` would come
+ * back as plain `/r/x`. Falls back to building one from the name for inputs like
+ * `r/steamdeck`, which is not a URL at all.
+ */
+function redditFallbackUrl(input: string, identifier: string | undefined): string {
+  return (
+    redditFeedUrl(normalizeInputUrl(input)) ??
+    `https://www.reddit.com/r/${identifier ?? ''}/new.rss`
+  );
 }

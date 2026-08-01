@@ -5,6 +5,7 @@ import { stubFetch } from '../helpers/stub-fetch.js';
 
 const XML = { 'content-type': 'application/rss+xml' };
 const HTML = { 'content-type': 'text/html; charset=utf-8' };
+const ATOM = { 'content-type': 'application/atom+xml; charset=UTF-8' };
 const FEED_URL = 'https://www.nutanix.com/blog/rss.xml';
 
 let restore: (() => void) | undefined;
@@ -84,11 +85,22 @@ describe('POST /api/sources/resolve', () => {
     expect(res.body.error.details.detectedKind).toBe('rss');
   });
 
-  it('detects a subreddit and explains that the adapter is not in this build', async () => {
+  it('resolves a subreddit through the public feed when there are no credentials', async () => {
+    // Reddit's OAuth registration takes weeks; the Atom feed needs none. Refusing
+    // here would block a source that works today over a permission that has not
+    // arrived yet.
+    const feedUrl = 'https://www.reddit.com/r/nutanix/new.rss';
+    const stub = stubFetch({
+      [feedUrl]: { body: fixture('rss', 'reddit-new.atom.xml'), headers: ATOM },
+    });
+    restore = stub.restore;
+
     const res = await agent.post('/api/sources/resolve').send({ input: 'r/nutanix' });
 
-    expect(res.status).toBe(400);
-    expect(res.body.error.message).toMatch(/reddit/i);
+    expect(res.status).toBe(200);
+    // `rss`, not `reddit`: without credentials there is no engagement data, and
+    // the source must not claim to be something it cannot be.
+    expect(res.body.candidates[0]).toMatchObject({ kind: 'rss', identifier: feedUrl });
   });
 
   it('detects an X handle rather than falling through to RSS', async () => {

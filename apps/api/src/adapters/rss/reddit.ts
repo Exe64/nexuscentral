@@ -66,7 +66,12 @@ export function redditFeedUrl(normalizedUrl: string): string | null {
 
   if (segments[0]?.toLowerCase() !== 'r') return null;
 
-  const name = segments[1];
+  // Lowercased, matching `detectKind` and the bare identifier the data model
+  // stores (01-SPEC-data-model.md 1.2). Reddit treats names case-insensitively,
+  // so `/r/SteamDeck` and `/r/steamdeck` are one subreddit -- and since
+  // `content_hash` is built from the identifier, keeping both spellings would
+  // store every post in it twice.
+  const name = segments[1]?.toLowerCase();
   if (name === undefined || !isSubredditName(name)) return null;
 
   // Anything deeper than `/r/<name>/<listing>` is a post permalink or a search,

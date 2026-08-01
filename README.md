@@ -299,9 +299,10 @@ makes that acceptable.
 ### Reddit
 
 Reddit needs an OAuth app. **Registration is not self-service and approval takes two to four
-weeks** — register before you need it. Until credentials are configured, Reddit sources are
-created _inactive_ with the reason recorded in `health.lastError`, so the UI can explain
-itself rather than showing a healthy source that silently produces nothing.
+weeks** — register before you need it. A `reddit` source created without credentials is left
+_inactive_ with the reason recorded in `health.lastError`, so the UI can explain itself rather
+than showing a healthy source that silently produces nothing. Resolving a subreddit does not
+refuse, though: see [below](#subreddits-without-credentials).
 
 Credentials come from `REDDIT_CLIENT_ID` / `REDDIT_CLIENT_SECRET` or from the settings page.
 The environment wins when both are present, and the settings page says so — otherwise saving
@@ -313,15 +314,22 @@ polling 60 subreddits every 15 minutes uses about 4%.
 
 #### Subreddits without credentials
 
-While you wait for approval, paste a subreddit URL as an **RSS** source. Reddit's Atom feeds
-need no credentials, and the resolver recognises the URL before any request goes out:
+While you wait for approval, just paste the subreddit. With no credentials configured, the
+resolver falls back to Reddit's public Atom feed instead of refusing, and returns an **rss**
+candidate — `rss` and not `reddit`, because without credentials there is no engagement data
+and the source should not claim to be something it cannot be. Nothing to configure:
 
-| You paste                                   | You get                                          |
-| ------------------------------------------- | ------------------------------------------------ |
-| `reddit.com/r/selfhosted`                   | `.../r/selfhosted/new.rss`                        |
-| `reddit.com/r/selfhosted.rss`               | `.../r/selfhosted/new.rss`                        |
-| `reddit.com/r/selfhosted+homelab`           | `.../r/selfhosted+homelab/new.rss`                |
-| `reddit.com/r/selfhosted/top?t=week`        | `.../r/selfhosted/top.rss?t=week`                 |
+| You paste                            | You get                            |
+| ------------------------------------ | ---------------------------------- |
+| `r/SteamDeck`                        | `.../r/steamdeck/new.rss`          |
+| `reddit.com/r/selfhosted`            | `.../r/selfhosted/new.rss`         |
+| `reddit.com/r/selfhosted.rss`        | `.../r/selfhosted/new.rss`         |
+| `reddit.com/r/selfhosted+homelab`    | `.../r/selfhosted+homelab/new.rss` |
+| `reddit.com/r/selfhosted/top?t=week` | `.../r/selfhosted/top.rss?t=week`  |
+
+Names are lowercased, matching the bare identifier the data model stores. Reddit treats them
+case-insensitively, and since `content_hash` is built from the identifier, keeping both
+spellings of one subreddit would store every post in it twice.
 
 Three things are worth knowing before relying on it.
 

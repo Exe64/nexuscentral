@@ -56,9 +56,28 @@ describe('redditFeedUrl', () => {
       'https://old.reddit.com/r/selfhosted',
       'https://np.reddit.com/r/selfhosted/',
       'https://reddit.com/r/selfhosted.rss',
+      // Reddit treats names case-insensitively and `detectKind` lowercases them,
+      // so this has to agree or the two paths disagree on one subreddit's identity.
+      'https://www.reddit.com/r/SelfHosted/',
     ].map(redditFeedUrl);
     expect(new Set(spellings).size).toBe(1);
     expect(spellings[0]).toBe(NEW);
+  });
+
+  it('is idempotent, because the resolver runs it twice on the fallback path', () => {
+    // `resolveInput` builds a feed URL and hands it to the RSS adapter, which
+    // runs this again. A second pass that changed the URL would mean a source
+    // whose identifier depends on how many times it was resolved.
+    for (const input of [
+      'https://www.reddit.com/r/selfhosted',
+      'https://www.reddit.com/r/selfhosted/top?t=week',
+      'https://www.reddit.com/r/selfhosted/comments/',
+      'https://www.reddit.com/r/selfhosted+homelab',
+    ]) {
+      const once = redditFeedUrl(input);
+      expect(once, input).not.toBeNull();
+      expect(redditFeedUrl(once as string), input).toBe(once);
+    }
   });
 
   it('declines a post permalink, which is a thread and not a listing', () => {

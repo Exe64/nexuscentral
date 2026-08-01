@@ -250,12 +250,15 @@ describe('creating a source of a kind that cannot be polled yet', () => {
     expect(res.body.data.health.lastError).toMatch(/No Nitter instance/i);
   });
 
-  it('explains the same thing when resolving instead of creating', async () => {
-    const res = await agent.post('/api/sources/resolve').send({ input: 'r/nutanix' });
+  it('still explains itself for an X handle, which has no public fallback', async () => {
+    // Reddit resolves through its public Atom feed without credentials, so only
+    // Nitter is left with nothing to fall back to: the instance list *is* the
+    // fallback, and an empty one is the operator's to fix.
+    const res = await agent.post('/api/sources/resolve').send({ input: '@nutanix' });
 
     expect(res.status).toBe(400);
     expect(res.body.error.code).toBe('VALIDATION_FAILED');
-    expect(res.body.error.details).toMatchObject({ kind: 'reddit', configured: false });
+    expect(res.body.error.details).toMatchObject({ kind: 'nitter', configured: false });
   });
 });
 

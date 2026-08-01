@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Trimmed from a real new.rss response, keeping the shape that matters: the id is
+  the t3_ fullname, the author carries its /u/ prefix, and there is no ups and no
+  num_comments anywhere in the document. That absence is the point; it is why
+  these resolve with no engagement term.
+-->
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <category term="nutanix" label="r/nutanix"/>
+  <updated>2026-07-31T22:29:11+00:00</updated>
+  <icon>https://www.redditstatic.com/icon.png/</icon>
+  <id>/r/nutanix/new/.rss</id>
+  <link rel="self" href="https://www.reddit.com/r/nutanix/new.rss" type="application/atom+xml"/>
+  <link rel="alternate" href="https://www.reddit.com/r/nutanix/new" type="text/html"/>
+  <title>newest submissions : nutanix</title>
+  <entry>
+    <author>
+      <name>/u/wojtekadams</name>
+      <uri>https://www.reddit.com/user/wojtekadams</uri>
+    </author>
+    <category term="nutanix" label="r/nutanix"/>
+    <content type="html">&lt;!-- SC_OFF --&gt;&lt;div class="md"&gt;&lt;p&gt;AOS 7.2 lands with a rebuilt scheduler.&lt;/p&gt;&lt;/div&gt;&lt;!-- SC_ON --&gt;</content>
+    <id>t3_1sey9ch</id>
+    <link href="https://www.reddit.com/r/nutanix/comments/1sey9ch/announcing_aos_72/"/>
+    <updated>2026-07-31T22:29:11+00:00</updated>
+    <published>2026-07-31T22:29:11+00:00</published>
+    <title>Announcing AOS 7.2</title>
+  </entry>
+  <entry>
+    <author>
+      <name>/u/s-ethh</name>
+      <uri>https://www.reddit.com/user/s-ethh</uri>
+    </author>
+    <category term="nutanix" label="r/nutanix"/>
+    <content type="html">&lt;!-- SC_OFF --&gt;&lt;div class="md"&gt;&lt;p&gt;Anyone else seeing this after the upgrade?&lt;/p&gt;&lt;/div&gt;&lt;!-- SC_ON --&gt;</content>
+    <id>t3_1sexr40</id>
+    <link href="https://www.reddit.com/r/nutanix/comments/1sexr40/out_of_sync_cloud/"/>
+    <updated>2026-07-31T21:53:02+00:00</updated>
+    <published>2026-07-31T21:53:02+00:00</published>
+    <title>Out of sync cloud, cannot find file locations?</title>
+  </entry>
+  <entry>
+    <author>
+      <name>/u/the-head78</name>
+      <uri>https://www.reddit.com/user/the-head78</uri>
+    </author>
+    <category term="nutanix" label="r/nutanix"/>
+    <content type="html">&lt;!-- SC_OFF --&gt;&lt;div class="md"&gt;&lt;p&gt;Looking for something lightweight.&lt;/p&gt;&lt;/div&gt;&lt;!-- SC_ON --&gt;</content>
+    <id>t3_1sexq11</id>
+    <link href="https://www.reddit.com/r/nutanix/comments/1sexq11/friendly_gui/"/>
+    <updated>2026-07-31T21:51:44+00:00</updated>
+    <published>2026-07-31T21:51:44+00:00</published>
+    <title>Friendly GUI for cluster health?</title>
+  </entry>
+</feed>
