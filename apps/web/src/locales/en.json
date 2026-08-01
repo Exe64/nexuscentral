@@ -1,5 +1,6 @@
 {
-  "app.name": "nexuscentral",
+  "app.name": "Nexus Central",
+  "pagebar.dashboard": "Dashboard",
   "nav.reader": "Reader",
   "nav.sources": "Sources",
   "nav.tags": "Tags",

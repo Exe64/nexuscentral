@@ -369,7 +369,7 @@ export function Rules(): ReactNode {
 
   return (
     <section>
-      <PageHeader title={t('rules.title')} description={t('rules.intro')} />
+      <PageHeader description={t('rules.intro')} />
 
       <div className="space-y-5">
         <AddRuleForm t={t} />

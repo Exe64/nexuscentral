@@ -215,7 +215,7 @@ export function Tags(): ReactNode {
 
   return (
     <section>
-      <PageHeader title={t('tags.title')} description={t('tags.intro')} />
+      <PageHeader description={t('tags.intro')} />
 
       <div className="space-y-5">
         <AddTagForm t={t} />

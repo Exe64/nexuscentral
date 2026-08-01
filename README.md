@@ -245,6 +245,22 @@ definition exactly or PostgreSQL silently ignores it, and at 200k rows that is t
 between 9 ms and a sequential scan. Nothing about the API's behaviour would change, which is
 what makes it worth a test.
 
+### Shell
+
+Two stacked bars. The **application bar** spans the full width above the sidebar and carries
+what belongs to the app rather than to a page: the name (**Nexus Central**, also the link
+home), search, refresh, the theme toggle and the shortcut list. The **page bar** sits below
+it, inside the content column, and names where you are.
+
+`nexuscentral` stays the technical identifier — package, image, storage keys, repository.
+Only the display name is spaced.
+
+The page bar is the **single** place a page name is rendered. The four pages that used to
+print their own heading pass only a description to `PageHeader` now; two headings saying
+"Sources" one above the other is an oversight, not a design. Dashboards resolve to their real
+name rather than a generic label, because "Home" and "Security" are the point of having
+several.
+
 ### Layouts and preview images
 
 The reader has three layouts, chosen from the toolbar and stored in `settings` beside the

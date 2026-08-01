@@ -454,7 +454,7 @@ export function Sources(): ReactNode {
 
   return (
     <section>
-      <PageHeader title={t('sources.title')} description={t('sources.intro')} />
+      <PageHeader description={t('sources.intro')} />
 
       <div className="space-y-5">
         <AddSourcePanel t={t} />

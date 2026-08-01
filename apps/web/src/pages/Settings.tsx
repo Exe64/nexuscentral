@@ -14,7 +14,7 @@ import { useSettings, useTestNitter, useTestReddit, useUpdateSettings } from '..
 import { AlertsPanel } from '../components/AlertsPanel.tsx';
 import { AppearancePanel } from '../components/AppearancePanel.tsx';
 import { SecurityPanel } from '../components/SecurityPanel.tsx';
-import { Button, Notice, PageHeader, Panel } from '../components/ui.tsx';
+import { Button, Notice, Panel } from '../components/ui.tsx';
 import { useT, type Translate } from '../i18n.tsx';
 
 const CONTROL = 'bg-surface border-subtle text-primary w-full rounded border px-2 py-1.5 text-sm';
@@ -288,7 +288,6 @@ export function Settings(): ReactNode {
 
   return (
     <div>
-      <PageHeader title={t('settings.title')} />
       <div className="space-y-5">
         <AppearancePanel />
         <SecurityPanel />

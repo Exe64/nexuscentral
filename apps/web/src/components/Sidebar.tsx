@@ -138,7 +138,8 @@ export function Sidebar(): ReactNode {
 
   return (
     <>
-      {/* Scrim, mobile only. */}
+      {/* Scrim, mobile only. Below the drawer, and below the app bar, which stays
+          reachable so the ☰ that opened this can close it again. */}
       {open && (
         <div
           className="fixed inset-0 z-30 bg-black/40 lg:hidden"
@@ -149,18 +150,24 @@ export function Sidebar(): ReactNode {
 
       <aside
         className={[
-          'bg-surface border-subtle fixed inset-y-0 left-0 z-40 w-64 overflow-y-auto border-r p-3',
-          'transition-transform lg:static lg:z-auto lg:translate-x-0',
+          'bg-surface border-subtle fixed bottom-0 left-0 z-40 w-64 overflow-y-auto border-r p-3',
+          // Starts below the application bar rather than under it. The one
+          // magic number in the shell, and it lives here alone: the bar is
+          // sticky at the top on every route, so the drawer cannot use
+          // `inset-y-0` without hiding its own close button behind it.
+          'top-[3.25rem] lg:static lg:top-auto lg:z-auto',
+          'transition-transform lg:translate-x-0',
           open ? 'translate-x-0' : '-translate-x-full',
         ].join(' ')}
         aria-label={t('nav.label')}
       >
-        <div className="mb-4 flex items-center justify-between">
-          <span className="text-primary px-2 text-sm font-semibold">{t('app.name')}</span>
+        {/* The name lives in the application bar now; repeating it here would be
+            the second of two headings saying the same thing. */}
+        <div className="mb-2 flex justify-end lg:hidden">
           <button
             type="button"
             onClick={closeSidebar}
-            className="text-secondary hover:bg-hovered rounded px-2 py-1 text-sm lg:hidden"
+            className="text-secondary hover:bg-hovered rounded px-2 py-1 text-sm"
             aria-label={t('nav.close')}
           >
             ✕

@@ -222,21 +222,31 @@ export function CheckboxField({
 /* Page and panel structure                                                    */
 /* -------------------------------------------------------------------------- */
 
+/**
+ * A page's intro and its page-level actions.
+ *
+ * `title` is optional and usually omitted: the page's name is rendered once, by
+ * `PageBar`, and a second heading directly beneath it saying the same word is
+ * noise. What is left here is the description and the actions, which are the
+ * parts that differ per page.
+ */
 export function PageHeader({
   title,
   description,
   actions,
 }: {
-  title: string;
+  title?: string;
   description?: string;
   actions?: ReactNode;
 }): ReactNode {
+  if (title === undefined && description === undefined && actions === undefined) return null;
+
   return (
     <header className="mb-5 flex flex-wrap items-start gap-3">
       <div className="mr-auto">
-        <h1 className="text-primary text-xl font-semibold">{title}</h1>
+        {title !== undefined && <h1 className="text-primary text-xl font-semibold">{title}</h1>}
         {description !== undefined && (
-          <p className="text-secondary mt-1 max-w-prose text-sm">{description}</p>
+          <p className="text-secondary max-w-prose text-sm">{description}</p>
         )}
       </div>
       {actions}

@@ -1,26 +1,25 @@
 /**
- * The top bar (04-SPEC-frontend.md 2): view title, search, refresh, theme toggle.
+ * The application bar: the brand and the controls that belong to the app rather
+ * than to any one page.
  *
- * The edit-mode toggle arrives in Phase 5, when there is a grid to edit.
+ * Full width, above the sidebar. It carries the name, search, refresh, the theme
+ * toggle and the shortcut list; the page's own name lives one bar down, in
+ * `PageBar`. Splitting them means the brand stays put while navigating, which is
+ * what makes the second bar readable as "where you are".
  */
 
 import { useEffect, useRef, type ReactNode } from 'react';
-import { useLocation } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useT } from '../i18n.tsx';
 import { useUiStore } from '../stores/ui.ts';
 import { useThemeStore } from '../theme/store.ts';
 
-const TITLE_KEYS: Record<string, string> = {
-  '/reader': 'reader.title',
-  '/sources': 'sources.title',
-  '/tags': 'tags.title',
-  '/rules': 'rules.title',
-  '/settings': 'settings.title',
-};
+/** Shared by the four icon buttons, so they cannot drift apart. */
+const ICON_BUTTON =
+  'text-secondary hover:bg-hovered hover:text-primary rounded px-2 py-1 text-sm transition-colors';
 
 export function TopBar(): ReactNode {
   const t = useT();
-  const location = useLocation();
   const search = useUiStore((state) => state.search);
   const setSearch = useUiStore((state) => state.setSearch);
   const toggleSidebar = useUiStore((state) => state.toggleSidebar);
@@ -45,20 +44,24 @@ export function TopBar(): ReactNode {
     searchInput.current?.select();
   }, [focusRequests]);
 
-  const titleKey = TITLE_KEYS[location.pathname] ?? 'app.name';
-
   return (
-    <header className="bg-surface border-subtle sticky top-0 z-20 flex items-center gap-2 border-b px-3 py-2">
+    <header className="bg-surface border-subtle sticky top-0 z-40 flex items-center gap-2 border-b px-3 py-2">
       <button
         type="button"
         onClick={toggleSidebar}
-        className="text-secondary hover:bg-hovered rounded px-2 py-1 lg:hidden"
+        className={`${ICON_BUTTON} lg:hidden`}
         aria-label={t('nav.open')}
       >
         ☰
       </button>
 
-      <h1 className="text-primary mr-auto text-sm font-semibold">{t(titleKey)}</h1>
+      {/* The brand doubles as the way home, which is what people try first. */}
+      <Link
+        to="/"
+        className="text-primary hover:text-accent mr-auto text-base font-semibold tracking-tight transition-colors"
+      >
+        {t('app.name')}
+      </Link>
 
       <label className="sr-only" htmlFor="global-search">
         {t('topbar.search')}
@@ -70,13 +73,13 @@ export function TopBar(): ReactNode {
         value={search}
         placeholder={t('topbar.search')}
         onChange={(event) => setSearch(event.target.value)}
-        className="w-32 text-sm sm:w-56"
+        className="bg-base border-subtle text-primary w-32 rounded border px-2 py-1 text-sm sm:w-56"
       />
 
       <button
         type="button"
         onClick={requestRefresh}
-        className="text-secondary hover:bg-hovered rounded px-2 py-1 text-sm"
+        className={ICON_BUTTON}
         title={t('topbar.refresh')}
         aria-label={t('topbar.refresh')}
       >
@@ -88,7 +91,7 @@ export function TopBar(): ReactNode {
         // Cycles rather than flipping: `system` is a real choice and has to be
         // reachable without opening settings.
         onClick={() => setMode(mode === 'system' ? 'light' : mode === 'light' ? 'dark' : 'system')}
-        className="text-secondary hover:bg-hovered rounded px-2 py-1 text-sm"
+        className={ICON_BUTTON}
         title={t(`theme.mode.${mode}`)}
         aria-label={t('topbar.theme', { mode: t(`theme.mode.${mode}`) })}
       >
@@ -98,7 +101,7 @@ export function TopBar(): ReactNode {
       <button
         type="button"
         onClick={toggleShortcuts}
-        className="text-secondary hover:bg-hovered hidden rounded px-2 py-1 text-sm sm:block"
+        className={`${ICON_BUTTON} hidden sm:block`}
         title={t('shortcuts.title')}
         aria-label={t('shortcuts.title')}
       >
