@@ -41,8 +41,30 @@ const RUN_TONE = {
   failed: 'error',
 } as const;
 
-function RunReport({ run, t }: { run: UpdateRun; t: Translate }): ReactNode {
-  if (run.state === 'idle' || run.state === 'unavailable') return null;
+function RunReport({
+  run,
+  updateAvailable,
+  t,
+}: {
+  run: UpdateRun;
+  updateAvailable: boolean;
+  t: Translate;
+}): ReactNode {
+  // Hiding the update button when no host agent exists was right -- it cannot
+  // succeed. Saying nothing about it was not: the panel then reads "Update
+  // available" and offers no way to take it, with the reason living only in the
+  // README. `unclaimed` already got an explanation rather than a silence, and
+  // this is the same argument.
+  //
+  // Only when an update is actually available. Mentioning the missing agent
+  // while up to date is noise about a thing that changes nothing today.
+  if (run.state === 'unavailable') {
+    return updateAvailable ? (
+      <Notice tone="info">{t('settings.update.run.notConfigured')}</Notice>
+    ) : null;
+  }
+
+  if (run.state === 'idle') return null;
 
   return (
     <div className="space-y-1">
@@ -146,7 +168,11 @@ export function UpdatePanel(): ReactNode {
             )}
           </dl>
 
-          <RunReport run={status.data.run} t={t} />
+          <RunReport
+            run={status.data.run}
+            updateAvailable={status.data.state === 'update_available'}
+            t={t}
+          />
 
           <div className="flex flex-wrap items-center gap-3">
             <Button

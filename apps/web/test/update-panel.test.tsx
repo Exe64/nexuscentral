@@ -131,14 +131,28 @@ describe('the update panel', () => {
     expect(await screen.findByText('Up to date')).toBeTruthy();
   });
 
-  it('offers no update button when the host has no agent', async () => {
-    // `unavailable` means no control directory. Offering the button would mean
-    // offering an action that cannot succeed.
+  it('offers no update button when the host has no agent, and says why', async () => {
+    // `unavailable` means no control directory. Withholding the button is right,
+    // it cannot succeed -- but withholding the reason was not. Reported from a
+    // live install: "Update available" with nothing to press and no explanation
+    // anywhere except the README.
     stub(status({ state: 'update_available', run: run({ state: 'unavailable' }) }));
     renderPage(<UpdatePanel />);
 
     expect(await screen.findByText('Update available')).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Update now' })).toBeNull();
+    expect(screen.getByText(/In-app updating is not set up on this host/)).toBeTruthy();
+    expect(screen.getByText(/UPDATE_CONTROL_DIR/)).toBeTruthy();
+  });
+
+  it('stays quiet about the missing agent when there is nothing to update to', async () => {
+    // True but irrelevant today, and the panel is not the place to list every
+    // optional thing that is switched off.
+    stub(status({ state: 'up_to_date', run: run({ state: 'unavailable' }) }));
+    renderPage(<UpdatePanel />);
+
+    expect(await screen.findByText('Up to date')).toBeTruthy();
+    expect(screen.queryByText(/In-app updating is not set up/)).toBeNull();
   });
 
   it('offers no update button when it cannot tell whether there is one', async () => {
