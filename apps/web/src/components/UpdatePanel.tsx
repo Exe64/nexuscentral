@@ -105,18 +105,28 @@ export function UpdatePanel(): ReactNode {
           <Notice tone={TONE[status.data.state]}>{headline(status.data, t)}</Notice>
 
           <dl className="text-secondary space-y-1 text-sm">
-            <div className="flex gap-2">
-              <dt className="text-muted">{t('settings.update.running')}</dt>
-              <dd className="font-mono">
-                {status.data.current === null
-                  ? t('settings.update.noSha')
-                  : status.data.current.slice(0, 7)}
-              </dd>
-            </div>
+            {/* Only when there is something to compare it against. Two rows
+                stacked -- "Running: unknown" over "Latest: b5638d9" -- are a
+                comparison table whatever the notice above them says, and they
+                read as a verdict that a newer commit was found. There is no
+                verdict here: the sha below is simply the head of main, which is
+                reported whether or not the build can be placed against it. */}
+            {status.data.current !== null && (
+              <div className="flex gap-2">
+                <dt className="text-muted">{t('settings.update.running')}</dt>
+                <dd className="font-mono">{status.data.current.slice(0, 7)}</dd>
+              </div>
+            )}
 
             {status.data.latest !== null && (
               <div className="flex gap-2">
-                <dt className="text-muted">{t('settings.update.latest')}</dt>
+                <dt className="text-muted">
+                  {t(
+                    status.data.current === null
+                      ? 'settings.update.newestOnMain'
+                      : 'settings.update.latest',
+                  )}
+                </dt>
                 <dd className="min-w-0">
                   <span className="font-mono">{status.data.latest}</span>
                   {status.data.latestAt !== null && (

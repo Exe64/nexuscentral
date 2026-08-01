@@ -371,13 +371,12 @@
   "settings.update.state.update_available": "Update available",
   "settings.update.state.unknown": "Cannot tell",
   "settings.update.state.disabled": "Update checking is turned off.",
-  "settings.update.unknown.no_build_sha": "Cannot tell: this build carries no commit sha, which is normal outside a deployment.",
+  "settings.update.unknown.no_build_sha": "Cannot tell: this build carries no commit sha, so there is nothing to compare the repository against. That is normal outside a deployment — deploy.sh sets it.",
   "settings.update.unknown.unreachable": "Cannot tell: GitHub could not be reached.",
   "settings.update.unknown.rate_limited": "Cannot tell: GitHub's hourly rate limit is spent. It resets within the hour.",
   "settings.update.unknown.unreadable_response": "Cannot tell: GitHub answered something unexpected.",
   "settings.update.running": "Running",
   "settings.update.latest": "Latest",
-  "settings.update.noSha": "unknown",
   "settings.update.check": "Check again",
   "settings.update.checking": "Checking…",
   "settings.update.checkedAt": "Checked {when}.",
@@ -395,5 +394,6 @@
   "topbar.update.available": "Update available",
   "topbar.update.running": "Updating…",
   "topbar.update.unclaimed": "Update not picked up",
-  "topbar.update.failed": "Update failed"
+  "topbar.update.failed": "Update failed",
+  "settings.update.newestOnMain": "Newest on main"
 }

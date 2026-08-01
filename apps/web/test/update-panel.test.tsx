@@ -90,12 +90,29 @@ describe('the update panel', () => {
     stub(status({ state: 'unknown', reason: 'no_build_sha', current: null }));
     renderPage(<UpdatePanel />);
 
-    expect(
-      await screen.findByText(
-        'Cannot tell: this build carries no commit sha, which is normal outside a deployment.',
-      ),
-    ).toBeTruthy();
-    expect(screen.getByText('unknown')).toBeTruthy();
+    expect(await screen.findByText(/nothing to compare the repository against/)).toBeTruthy();
+  });
+
+  it('does not lay out a comparison it did not make', async () => {
+    // Reported from a dev run: "Running: unknown" stacked over "Latest: b5638d9"
+    // was read as "a newer commit was found", because two rows in a list are a
+    // comparison table whatever the notice above them says. There is no verdict
+    // when the build carries no sha, so there is no second row to compare with.
+    stub(status({ state: 'unknown', reason: 'no_build_sha', current: null, latest: 'b5638d9' }));
+    renderPage(<UpdatePanel />);
+
+    expect(await screen.findByText('Newest on main')).toBeTruthy();
+    expect(screen.queryByText('Running')).toBeNull();
+    expect(screen.queryByText('Latest')).toBeNull();
+  });
+
+  it('lays one out when it did make one', async () => {
+    stub(status({ state: 'update_available', current: '2519531', latest: 'b5638d9' }));
+    renderPage(<UpdatePanel />);
+
+    expect(await screen.findByText('Running')).toBeTruthy();
+    expect(screen.getByText('Latest')).toBeTruthy();
+    expect(screen.queryByText('Newest on main')).toBeNull();
   });
 
   it('names the rate limit as its own cause', async () => {
