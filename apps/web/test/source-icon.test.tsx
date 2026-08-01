@@ -92,3 +92,64 @@ describe('source icons', () => {
     expect(document.querySelector('img')).toBeNull();
   });
 });
+
+describe('source tags on every item', () => {
+  const TAG = {
+    id: 7,
+    name: 'Storage',
+    slug: 'storage',
+    color: 'teal',
+    createdAt: '2026-07-01T00:00:00.000Z',
+  };
+
+  function withTags(readerView: string) {
+    const base = makeItem();
+    return stubApi({
+      'GET /api/items': {
+        body: {
+          data: [
+            { ...base, source: { ...(base['source'] as object), tags: [TAG] } },
+            {
+              ...base,
+              id: '2',
+              title: 'Second item',
+              source: { ...(base['source'] as object), tags: [TAG] },
+            },
+          ],
+          nextCursor: null,
+        },
+      },
+      'GET /api/tags': { body: { data: [] } },
+      'GET /api/sources': { body: { data: [] } },
+      'GET /api/health': HEALTH_OK,
+      'GET /api/settings': { body: { data: makeSettings({ readerView }) } },
+    });
+  }
+
+  it('shows the source tags on each row, not just the first', async () => {
+    withTags('list');
+    renderPage(<Reader />);
+    await screen.findByText('Second item');
+
+    expect(screen.getAllByText('Storage')).toHaveLength(2);
+  });
+
+  it('keeps them next to the source name rather than at the end of the meta line', async () => {
+    // The association is the whole point: these are the *source's* tags. With
+    // the date, the points and the score in between they read as the item's.
+    withTags('list');
+    renderPage(<Reader />);
+    await screen.findByText('Second item');
+
+    const group = (screen.getAllByText('Nutanix Blog')[0] as HTMLElement).parentElement;
+    expect(group?.textContent).toContain('Storage');
+  });
+
+  it('leaves them out of titles mode, which trades context for density', async () => {
+    withTags('titles');
+    renderPage(<Reader />);
+    await screen.findByText('Second item');
+
+    expect(screen.queryByText('Storage')).toBeNull();
+  });
+});

@@ -134,9 +134,21 @@ function ItemRow({
             <h3 className="text-base leading-snug font-medium">{titleLink}</h3>
 
             <p className="text-secondary mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
-              <span className="flex items-center gap-1">
+              {/* Icon, name and tags are one group, and the tags come straight
+                  after the name they belong to. They used to sit last, past the
+                  date, the points and the score, which put four unrelated things
+                  between a source and its own tags and made them read as
+                  belonging to the item. `gap-1` inside, `gap-x-2` outside: the
+                  grouping has to survive the line wrapping on a narrow window. */}
+              <span className="flex flex-wrap items-center gap-1">
                 <SourceIcon src={item.source.iconUrl} />
-                {item.source.title}
+                {/* Wrapped rather than left as a bare text node: with the tags
+                    beside it, the group's own text becomes "Nutanix BlogStorage"
+                    and an exact-text query for the source name stops matching. */}
+                <span>{item.source.title}</span>
+                {item.source.tags.map((tag) => (
+                  <TagChip key={tag.id} tag={tag} />
+                ))}
               </span>
               <time dateTime={item.publishedAt} title={absoluteTime(item.publishedAt)}>
                 {relativeTime(item.publishedAt)}
@@ -148,9 +160,6 @@ function ItemRow({
               )}
               {scoreButton}
               {item.starred && <span aria-label={t('reader.item.starred')}>★</span>}
-              {item.source.tags.map((tag) => (
-                <TagChip key={tag.id} tag={tag} />
-              ))}
             </p>
 
             {item.summary !== null && (
