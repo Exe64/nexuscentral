@@ -1,0 +1,20 @@
+[Unit]
+# Runs deploy.sh when the application has asked for an update. See
+# deploy/update-agent.sh for why this lives on the host rather than in the
+# container.
+Description=nexuscentral in-app update agent
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+# Root: it drives docker and writes the application's working tree.
+User=root
+WorkingDirectory=/opt/apps/nexuscentral
+ExecStart=/opt/apps/nexuscentral/deploy/update-agent.sh
+# A build plus a migration plus a health check. Generous, but bounded: a hung
+# deploy must not hold the lock for ever.
+TimeoutStartSec=1800
+
+[Install]
+WantedBy=multi-user.target

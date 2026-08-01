@@ -99,6 +99,13 @@ log "Deploying ${PREV_SHA} -> ${NEW_SHA}"
 # an image labelled with the previous deployment's sha.
 export GIT_SHA="$NEW_SHA"
 
+# The control directory the api container shares with the update agent. Created
+# here, owned by the image's `node` user (uid 1000): left to Docker it would be
+# created root-owned on first `up`, and the container could not write its
+# request. Harmless when in-app updates are not enabled -- an empty directory.
+mkdir -p "$APP_DIR/control"
+chown 1000:1000 "$APP_DIR/control" 2>/dev/null || true
+
 # 4. PostgreSQL first, before the build.
 #
 #    Ahead of the build so that the credential check below fails in seconds rather

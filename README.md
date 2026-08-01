@@ -503,6 +503,49 @@ past a rate-limit backoff — retrying inside GitHub's window earns another 403,
 counts against the next window too. Set `UPDATE_CHECK_ENABLED=false` to stop the check
 entirely.
 
+### In-app updates
+
+Settings can also _perform_ the update. Optional, off until you install a systemd timer,
+and built the way it is for one reason:
+
+**The application never runs `deploy.sh` itself.** Doing so means holding
+`/var/run/docker.sock`, and that socket is root on the host — anything holding it can start
+a privileged container that mounts `/`. This API is on the internet behind one password,
+and this VPS runs other applications. Handing it the socket would mean one authentication
+bug costs the whole machine rather than one app.
+
+So the container **asks** and the host **acts**. The API writes `control/request.json` into
+a directory it already owns; `deploy/update-agent.sh`, run by a systemd timer every minute,
+decides whether to act and runs `deploy.sh`. The container gains no capability whatsoever.
+
+The request is a **trigger, not a parameter** — nothing in that file ever reaches a command
+line. `deploy.sh` always deploys the head of `main`, so there is no target to pass, which is
+what makes a hostile `request.json` uninteresting. A test asserts the file has exactly one
+key.
+
+```bash
+sudo cp deploy/nexuscentral-update.service deploy/nexuscentral-update.timer /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now nexuscentral-update.timer
+# then, in .env:
+UPDATE_CONTROL_DIR=/app/control
+```
+
+`UPDATE_CONTROL_DIR` is deliberately unset by default. With no agent listening the button
+would appear and do nothing, and a button that silently does nothing is worse than no
+button. For the same reason a request nothing claims within five minutes is reported as
+**`unclaimed`** — "the timer is not installed" rather than a spinner that never stops.
+
+The confirmation says the three things a button label cannot: the database is migrated, the
+application goes away for a few minutes, and the page you are looking at will stop loading
+while it does. `deploy.sh` dumps the database before migrating and rolls back to the previous
+commit if the migration or the health check fails; on a failure the panel shows the tail of
+the deploy log, which is where the reason is.
+
+The update button appears only when an update is genuinely available **and** an agent
+exists. Never on `unknown`: deploying on the strength of a check that failed is the wrong
+response to not knowing.
+
 ## Testing
 
 ```bash

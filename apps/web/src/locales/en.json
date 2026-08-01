@@ -381,5 +381,15 @@
   "settings.update.check": "Check again",
   "settings.update.checking": "Checking…",
   "settings.update.checkedAt": "Checked {when}.",
-  "settings.update.viewChanges": "View the changes on GitHub"
+  "settings.update.viewChanges": "View the changes on GitHub",
+  "settings.update.run.start": "Update now",
+  "settings.update.run.requested": "Update requested. The host agent picks it up within a minute.",
+  "settings.update.run.unclaimed": "The request has not been picked up. Check that the nexuscentral-update timer is installed and running on the host.",
+  "settings.update.run.running": "Deploying. The application restarts partway through, so this page may fail to load for a minute.",
+  "settings.update.run.succeeded": "Update complete.",
+  "settings.update.run.failed": "The update failed. deploy.sh rolls back to the previous commit when a migration or the health check fails.",
+  "settings.update.run.deployed": "Deployed {from} → {to}.",
+  "settings.update.confirm.title": "Update now?",
+  "settings.update.confirm.body": "The host will pull the new commit, rebuild, dump the database, migrate it and restart the stack. That takes a few minutes, during which the application is unavailable and this page will not load. A dump is taken before the migration, and a failed migration or health check rolls back to the current commit.",
+  "settings.update.confirm.go": "Update"
 }

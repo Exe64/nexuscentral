@@ -67,6 +67,15 @@ services:
       GIT_SHA: ${GIT_SHA:-}
       UPDATE_REPO: ${UPDATE_REPO:-Exe64/nexuscentral}
       UPDATE_CHECK_ENABLED: ${UPDATE_CHECK_ENABLED:-true}
+      # Empty until the host agent is installed. Deliberately opt-in: with no
+      # agent listening, the update button would appear and do nothing, which is
+      # worse than no button. See README > In-app updates.
+      UPDATE_CONTROL_DIR: ${UPDATE_CONTROL_DIR:-}
+    volumes:
+      # The whole privilege story of in-app updates: the container writes a
+      # request here and the host agent reads it. No Docker socket, no new
+      # capability -- a shared directory and a systemd timer.
+      - ./control:/app/control
 
   web:
     build:

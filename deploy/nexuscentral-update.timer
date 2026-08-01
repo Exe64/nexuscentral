@@ -1,0 +1,14 @@
+[Unit]
+Description=Poll for a nexuscentral in-app update request
+
+[Timer]
+# Every minute. The agent exits immediately when there is no request file, so
+# the cost of a tick is one stat call; the delay a user feels after pressing the
+# button is what this interval buys.
+OnBootSec=2min
+OnUnitActiveSec=1min
+AccuracySec=15s
+Unit=nexuscentral-update.service
+
+[Install]
+WantedBy=timers.target

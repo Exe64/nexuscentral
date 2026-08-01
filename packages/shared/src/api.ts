@@ -66,3 +66,48 @@ export interface UpdateStatus {
   /** Why the state is `unknown`, for the UI to show instead of a bare shrug. */
   reason: string | null;
 }
+
+/**
+ * An in-app update, performed by a host-side agent.
+ *
+ * The application never runs the deploy itself: doing so would mean holding the
+ * Docker socket, which is root on the host. It writes a request and reads back
+ * what the agent did (see deploy/update-agent.sh).
+ *
+ * `unclaimed` is the state that earns its place: a request nothing picks up
+ * looks exactly like a working button that does nothing, and that is what an
+ * agent which was never installed produces.
+ */
+export const UPDATE_RUN_STATES = [
+  /** No control directory: in-app updates are not set up on this host. */
+  'unavailable',
+  'idle',
+  'requested',
+  'unclaimed',
+  'running',
+  'succeeded',
+  'failed',
+] as const;
+export type UpdateRunState = (typeof UPDATE_RUN_STATES)[number];
+
+export interface UpdateRun {
+  state: UpdateRunState;
+  requestedAt: string | null;
+  startedAt: string | null;
+  finishedAt: string | null;
+  fromSha: string | null;
+  toSha: string | null;
+  message: string | null;
+  /** The tail of the deploy log, and only on a failure. */
+  logTail: string | null;
+}
+
+/**
+ * What `GET /api/update` answers: the comparison and the run, together.
+ *
+ * One endpoint rather than two because the UI never wants one without the other
+ * -- "up to date" and "a deploy is running" are the same question asked twice.
+ */
+export interface UpdateInfo extends UpdateStatus {
+  run: UpdateRun;
+}

@@ -80,6 +80,15 @@ const schema = z.object({
 
   /** An off switch for the one outbound call the app makes on its own behalf. */
   UPDATE_CHECK_ENABLED: booleanish.default('true'),
+
+  /**
+   * Where the app leaves an update request for the host agent to find.
+   *
+   * Optional, and in-app updating is off when it is unset -- which is the right
+   * default: it only works if the systemd timer in deploy/ is installed, and a
+   * button that silently does nothing is worse than no button.
+   */
+  UPDATE_CONTROL_DIR: z.string().min(1).optional(),
 });
 
 export type Env = z.infer<typeof schema>;

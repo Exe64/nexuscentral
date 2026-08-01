@@ -7,12 +7,13 @@
  * the one answer that is actively misleading.
  */
 
-import type { ReactNode } from 'react';
-import type { UpdateStatus } from '@nexuscentral/shared';
-import { useCheckForUpdate, useUpdateStatus } from '../api/queries.ts';
+import { useState, type ReactNode } from 'react';
+import type { UpdateRun, UpdateStatus } from '@nexuscentral/shared';
+import { useCheckForUpdate, useRunUpdate, useUpdateStatus } from '../api/queries.ts';
 import { useT, type Translate } from '../i18n.tsx';
 import { absoluteTime, relativeTime } from '../lib/format.ts';
 import { Button, Notice, Panel } from './ui.tsx';
+import { Modal } from './Modal.tsx';
 
 const TONE = {
   up_to_date: 'success',
@@ -28,10 +29,55 @@ function headline(status: UpdateStatus, t: Translate): string {
   return t(`settings.update.state.${status.state}`);
 }
 
+/** Tone per run state. `unclaimed` is a warning: it means nothing is listening. */
+const RUN_TONE = {
+  unavailable: 'info',
+  idle: 'info',
+  requested: 'info',
+  unclaimed: 'warning',
+  running: 'info',
+  succeeded: 'success',
+  failed: 'error',
+} as const;
+
+function RunReport({ run, t }: { run: UpdateRun; t: Translate }): ReactNode {
+  if (run.state === 'idle' || run.state === 'unavailable') return null;
+
+  return (
+    <div className="space-y-1">
+      <Notice tone={RUN_TONE[run.state]}>{t(`settings.update.run.${run.state}`)}</Notice>
+
+      {run.state === 'succeeded' && run.toSha !== null && (
+        <p className="text-muted text-xs">
+          {t('settings.update.run.deployed', {
+            from: (run.fromSha ?? '').slice(0, 7),
+            to: run.toSha.slice(0, 7),
+          })}
+        </p>
+      )}
+
+      {run.message !== null && run.state === 'failed' && (
+        <p className="text-secondary text-xs">{run.message}</p>
+      )}
+
+      {/* Only on a failure, and only the tail. deploy.sh rolls back on a failed
+          migration or health check, so what matters is why -- and that is at the
+          end of the log, not in the three minutes of build output above it. */}
+      {run.logTail !== null && (
+        <pre className="bg-hovered text-secondary max-h-48 overflow-auto rounded p-2 text-xs">
+          {run.logTail}
+        </pre>
+      )}
+    </div>
+  );
+}
+
 export function UpdatePanel(): ReactNode {
   const t = useT();
   const status = useUpdateStatus();
   const check = useCheckForUpdate();
+  const run = useRunUpdate();
+  const [confirming, setConfirming] = useState(false);
 
   return (
     <Panel title={t('settings.update.title')} description={t('settings.update.intro')}>
@@ -75,6 +121,8 @@ export function UpdatePanel(): ReactNode {
             )}
           </dl>
 
+          <RunReport run={status.data.run} t={t} />
+
           <div className="flex flex-wrap items-center gap-3">
             <Button
               onClick={() => check.mutate()}
@@ -82,6 +130,24 @@ export function UpdatePanel(): ReactNode {
             >
               {check.isPending ? t('settings.update.checking') : t('settings.update.check')}
             </Button>
+
+            {/* Offered only when there is something to install and a host agent
+                to install it. Never on `unknown`: deploying on the strength of a
+                check that failed is exactly the wrong response to not knowing. */}
+            {status.data.state === 'update_available' &&
+              status.data.run.state !== 'unavailable' && (
+                <Button
+                  variant="primary"
+                  onClick={() => setConfirming(true)}
+                  disabled={
+                    run.isPending ||
+                    status.data.run.state === 'requested' ||
+                    status.data.run.state === 'running'
+                  }
+                >
+                  {t('settings.update.run.start')}
+                </Button>
+              )}
 
             {status.data.compareUrl !== null && status.data.state === 'update_available' && (
               <a
@@ -102,7 +168,35 @@ export function UpdatePanel(): ReactNode {
           </div>
 
           {check.error !== null && <Notice tone="error">{check.error.message}</Notice>}
+          {run.error !== null && <Notice tone="error">{run.error.message}</Notice>}
         </div>
+      )}
+
+      {confirming && (
+        <Modal
+          title={t('settings.update.confirm.title')}
+          onClose={() => setConfirming(false)}
+          footer={
+            <>
+              <Button onClick={() => setConfirming(false)}>{t('common.cancel')}</Button>
+              <Button
+                variant="primary"
+                onClick={() => {
+                  run.mutate();
+                  setConfirming(false);
+                }}
+              >
+                {t('settings.update.confirm.go')}
+              </Button>
+            </>
+          }
+        >
+          {/* Said plainly because all three are true and none is obvious from a
+              button labelled "Update now": the database is migrated, the app
+              goes away for a few minutes, and this page will fail to load
+              during it. */}
+          <p className="text-secondary text-sm">{t('settings.update.confirm.body')}</p>
+        </Modal>
       )}
     </Panel>
   );

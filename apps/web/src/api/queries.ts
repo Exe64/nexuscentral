@@ -32,7 +32,8 @@ import type {
   TagWithCounts,
   ThemeMode,
   ThemePreset,
-  UpdateStatus,
+  UpdateInfo,
+  UpdateRun,
   WebhookKind,
   Widget,
   WidgetType,
@@ -638,18 +639,41 @@ export function useAcknowledgeAlert(): UseMutationResult<void, Error, string> {
  * often the page is opened. `force` is the explicit "check again" button, and
  * the API applies its own floor to it.
  */
-export function useUpdateStatus(): UseQueryResult<UpdateStatus> {
+export function useUpdateStatus(): UseQueryResult<UpdateInfo> {
   return useQuery({
     queryKey: keys.update,
-    queryFn: async () => (await apiFetch<Envelope<UpdateStatus>>('/update')).data,
+    queryFn: async () => (await apiFetch<Envelope<UpdateInfo>>('/update')).data,
+    // While the agent deploys, this API is rebuilt and restarted underneath the
+    // poll. Requests failing for a minute is the expected middle of a successful
+    // update, not an error -- hence the retries, and the poll that only runs
+    // while there is something to watch.
+    refetchInterval: (query) => {
+      const state = query.state.data?.run.state;
+      return state === 'requested' || state === 'running' ? 5000 : false;
+    },
+    retry: 3,
   });
 }
 
-export function useCheckForUpdate(): UseMutationResult<UpdateStatus, Error, void> {
+export function useCheckForUpdate(): UseMutationResult<UpdateInfo, Error, void> {
   const client = useQueryClient();
   return useMutation({
-    mutationFn: async () => (await apiFetch<Envelope<UpdateStatus>>('/update?force=true')).data,
+    mutationFn: async () => (await apiFetch<Envelope<UpdateInfo>>('/update?force=true')).data,
     onSuccess: (data) => client.setQueryData(keys.update, data),
+  });
+}
+
+/**
+ * Ask the host agent to deploy. Answers 202 with the queued run: the work
+ * happens outside this process, and this process is one of the things it
+ * restarts.
+ */
+export function useRunUpdate(): UseMutationResult<UpdateRun, Error, void> {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async () =>
+      (await apiFetch<Envelope<UpdateRun>>('/update/run', { method: 'POST' })).data,
+    onSuccess: () => client.invalidateQueries({ queryKey: keys.update }),
   });
 }
 
