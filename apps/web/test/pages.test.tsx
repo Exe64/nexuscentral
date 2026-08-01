@@ -301,7 +301,7 @@ describe('Sources', () => {
 
     renderPage(<Sources />);
 
-    await userEvent.click(await screen.findByRole('button', { name: 'Edit tags' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Edit' }));
 
     // Storage starts checked; swap it for Networking.
     await userEvent.click(screen.getByRole('checkbox', { name: 'Storage' }));
@@ -314,7 +314,9 @@ describe('Sources', () => {
     const patch = vi
       .mocked(fetch)
       .mock.calls.find(([, init]) => (init as RequestInit | undefined)?.method === 'PATCH');
-    expect(JSON.parse(String((patch?.[1] as RequestInit).body))).toEqual({ tagIds: [2] });
+    // The dialog saves the whole form, so the assertion is about the tag set
+    // specifically: [2], not [1, 2]. Replaced, not merged.
+    expect(JSON.parse(String((patch?.[1] as RequestInit).body)).tagIds).toEqual([2]);
   });
 
   it('invites the user to add a first source', async () => {

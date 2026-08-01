@@ -18,6 +18,7 @@ import {
   useUpdateSource,
   type ResolveCandidate,
 } from '../api/queries.ts';
+import { Modal } from '../components/Modal.tsx';
 import { TagChip } from '../components/TagChip.tsx';
 import {
   Button,
@@ -27,10 +28,12 @@ import {
   Notice,
   PageHeader,
   Panel,
+  SelectField,
   TD,
   TH,
   TR,
   Table,
+  TextField,
 } from '../components/ui.tsx';
 import { useT, type Translate } from '../i18n.tsx';
 import { absoluteTime, relativeTime } from '../lib/format.ts';
@@ -286,52 +289,169 @@ function health(source: Source, t: Translate): { label: string; tone: string } {
   return { label: t('sources.health.ok'), tone: 'text-positive' };
 }
 
-function TagEditor({
+/**
+ * The intervals worth offering, so the common case is a click.
+ *
+ * A free-text box would be the more flexible control and the worse one: the API
+ * parses `"15 minutes"` and rejects anything else, so every typo becomes a round
+ * trip and an error message. Values outside this list are still reachable —
+ * `intervalOptions` keeps whatever the source already has.
+ */
+const POLL_INTERVALS = [
+  '5 minutes',
+  '15 minutes',
+  '30 minutes',
+  '1 hour',
+  '2 hours',
+  '6 hours',
+  '12 hours',
+  '1 day',
+];
+
+/**
+ * The presets, plus the source's current value when it is not one of them.
+ *
+ * OPML import and older rows carry intervals nobody would pick from a list, and
+ * a select that silently dropped them would change the schedule the moment
+ * anything else on the form was saved.
+ */
+export function intervalOptions(current: string): string[] {
+  return POLL_INTERVALS.includes(current) ? POLL_INTERVALS : [current, ...POLL_INTERVALS];
+}
+
+/**
+ * Everything about a source that can be changed after it exists.
+ *
+ * A dialog rather than the inline editor this replaces: the row was already
+ * carrying six columns, and editing an interval inside a table cell that also
+ * has to show health is how a table stops being readable.
+ */
+function EditSourceDialog({
   source,
   t,
-  onDone,
+  onClose,
 }: {
   source: Source;
   t: Translate;
-  onDone: () => void;
+  onClose: () => void;
 }): ReactNode {
   const tags = useTags();
   const update = useUpdateSource();
+
+  const [title, setTitle] = useState(source.title);
+  const [pollInterval, setPollInterval] = useState(source.pollInterval);
+  const [weight, setWeight] = useState(String(source.weight));
   const [selected, setSelected] = useState<number[]>(source.tags.map((tag) => tag.id));
 
-  return (
-    <form
-      className="space-y-2"
-      onSubmit={(event) => {
-        event.preventDefault();
+  const parsedWeight = Number(weight);
+  const weightValid = Number.isFinite(parsedWeight) && parsedWeight >= 0 && parsedWeight <= 10;
+
+  const save = (): void => {
+    if (!weightValid) return;
+
+    update.mutate(
+      {
+        id: source.id,
+        title: title.trim(),
+        pollInterval,
+        weight: parsedWeight,
         // PATCH replaces the tag set rather than merging it, so the checkbox
         // state is the whole answer.
-        update.mutate({ id: source.id, tagIds: selected }, { onSuccess: onDone });
-      }}
+        tagIds: selected,
+      },
+      { onSuccess: onClose },
+    );
+  };
+
+  return (
+    <Modal
+      title={t('sources.edit.title')}
+      onClose={onClose}
+      footer={
+        <>
+          <Button variant="ghost" onClick={onClose}>
+            {t('common.cancel')}
+          </Button>
+          {/* Calls the handler rather than relying on `form=` association: the
+              button lives in the modal's footer, outside the <form>, and that
+              association is not something every environment implements. Enter
+              inside the form still submits, through onSubmit below. */}
+          <Button variant="primary" disabled={update.isPending || !weightValid} onClick={save}>
+            {t('common.save')}
+          </Button>
+        </>
+      }
     >
-      <div className="flex flex-wrap gap-2">
-        {(tags.data ?? []).map((tag) => (
-          <CheckboxField
-            key={tag.id}
-            label={tag.name}
-            checked={selected.includes(tag.id)}
-            onChange={(event) =>
-              setSelected((current) =>
-                event.target.checked ? [...current, tag.id] : current.filter((id) => id !== tag.id),
-              )
-            }
-          />
-        ))}
-      </div>
-      <div className="flex gap-1">
-        <Button type="submit" size="sm" variant="primary" disabled={update.isPending}>
-          {t('common.save')}
-        </Button>
-        <Button size="sm" variant="ghost" onClick={onDone}>
-          {t('common.cancel')}
-        </Button>
-      </div>
-    </form>
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          save();
+        }}
+        className="space-y-4"
+      >
+        <TextField
+          label={t('sources.edit.name')}
+          value={title}
+          required
+          onChange={(event) => setTitle(event.target.value)}
+          hint={t('sources.edit.name.hint')}
+        />
+
+        <SelectField
+          label={t('sources.edit.interval')}
+          value={pollInterval}
+          onChange={(event) => setPollInterval(event.target.value)}
+          hint={t('sources.edit.interval.hint')}
+        >
+          {intervalOptions(source.pollInterval).map((option) => (
+            <option key={option} value={option}>
+              {option}
+            </option>
+          ))}
+        </SelectField>
+
+        <TextField
+          label={t('sources.edit.weight')}
+          type="number"
+          min={0}
+          max={10}
+          step={0.1}
+          value={weight}
+          onChange={(event) => setWeight(event.target.value)}
+          hint={t('sources.edit.weight.hint')}
+          {...(weightValid ? {} : { error: t('sources.edit.weight.invalid') })}
+        />
+
+        <fieldset>
+          <legend className="text-secondary mb-1 block text-sm">{t('sources.edit.tags')}</legend>
+          {(tags.data ?? []).length === 0 ? (
+            <p className="text-muted text-xs">{t('sources.edit.tags.none')}</p>
+          ) : (
+            <div className="flex flex-wrap gap-x-4 gap-y-1">
+              {(tags.data ?? []).map((tag) => (
+                <CheckboxField
+                  key={tag.id}
+                  label={tag.name}
+                  checked={selected.includes(tag.id)}
+                  onChange={(event) =>
+                    setSelected((current) =>
+                      event.target.checked
+                        ? [...current, tag.id]
+                        : current.filter((id) => id !== tag.id),
+                    )
+                  }
+                />
+              ))}
+            </div>
+          )}
+        </fieldset>
+
+        {/* The API validates the interval and the weight too. Showing its message
+            rather than a generic one is the difference between "that failed" and
+            knowing which field to fix. */}
+        {update.error !== null && <Notice tone="error">{update.error.message}</Notice>}
+      </form>
+    </Modal>
   );
 }
 
@@ -339,7 +459,7 @@ function SourceRow({ source, t }: { source: Source; t: Translate }): ReactNode {
   const poll = usePollSource();
   const update = useUpdateSource();
   const remove = useDeleteSource();
-  const [editingTags, setEditingTags] = useState(false);
+  const [editing, setEditing] = useState(false);
 
   const state = health(source, t);
 
@@ -368,22 +488,24 @@ function SourceRow({ source, t }: { source: Source; t: Translate }): ReactNode {
       </TD>
 
       <TD>
-        {editingTags ? (
-          <TagEditor source={source} t={t} onDone={() => setEditingTags(false)} />
-        ) : (
-          <div className="flex flex-wrap items-center gap-1">
-            {source.tags.map((tag) => (
-              <TagChip key={tag.id} tag={tag} />
-            ))}
-            <Button size="sm" variant="ghost" onClick={() => setEditingTags(true)}>
-              {t('sources.editTags')}
-            </Button>
-          </div>
-        )}
+        <div className="flex flex-wrap items-center gap-1">
+          {source.tags.length === 0 ? (
+            <span className="text-muted text-xs">{t('sources.noTags')}</span>
+          ) : (
+            source.tags.map((tag) => <TagChip key={tag.id} tag={tag} />)
+          )}
+        </div>
       </TD>
 
       <TD>
         <span className="text-secondary text-xs">{source.pollInterval}</span>
+        {/* Weight only when it is not the default: a column of "×1.00" teaches
+            nothing, and a weight that is not 1 changes every score. */}
+        {source.weight !== 1 && (
+          <span className="text-muted mt-0.5 block text-xs tabular-nums">
+            ×{source.weight.toFixed(2)}
+          </span>
+        )}
       </TD>
 
       <TD>
@@ -409,6 +531,9 @@ function SourceRow({ source, t }: { source: Source; t: Translate }): ReactNode {
 
       <TD align="right">
         <div className="flex items-center justify-end gap-1">
+          <Button size="sm" onClick={() => setEditing(true)}>
+            {t('sources.edit')}
+          </Button>
           <Button size="sm" disabled={poll.isPending} onClick={() => poll.mutate(source.id)}>
             {t('sources.pollNow')}
           </Button>
@@ -437,6 +562,8 @@ function SourceRow({ source, t }: { source: Source; t: Translate }): ReactNode {
             {poll.data.queued ? t('sources.polling') : t('sources.pollNotQueued')}
           </span>
         )}
+
+        {editing && <EditSourceDialog source={source} t={t} onClose={() => setEditing(false)} />}
       </TD>
     </TR>
   );

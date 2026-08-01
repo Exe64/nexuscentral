@@ -322,6 +322,10 @@ rules that fired, by name.
 
 Two things worth knowing about the numbers:
 
+- **`source.weight` is per source and editable**, from the Edit dialog on the Sources page,
+  along with the name, the poll interval and the tags. It multiplies every score from that
+  source: 1 is neutral, below 1 demotes, and the table shows it only when it is not 1 —
+  a column of `×1.00` teaches nothing.
 - **Recency has a floor of 0.15, reached at about 66 hours.** Past that, age stops
   discriminating, which is why the hourly refresh only bothers with the last 7 days.
 - **The breakdown reports the stored score _and_ the score recomputed now.** They drift
