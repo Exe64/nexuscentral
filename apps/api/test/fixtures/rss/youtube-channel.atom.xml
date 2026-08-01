@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  A YouTube channel feed, trimmed from the real thing.
+
+  The shape that matters: the thumbnail and the description sit inside
+  media:group, not on the entry. Reading only the entry finds neither, which is
+  what a channel used to arrive as here: a title, a link and nothing else.
+
+  The media:content is deliberately kept. It is application/x-shockwave-flash,
+  it is 640x390 so no size guard rejects it, and it is listed before the
+  thumbnail. Anything that takes the first media element in the group picks a
+  dead Flash URL and calls it a preview image.
+-->
+<feed xmlns:yt="http://www.youtube.com/xml/schemas/2015"
+      xmlns:media="http://search.yahoo.com/mrss/"
+      xmlns="http://www.w3.org/2005/Atom">
+  <id>yt:channel:UCsBjURrPoezykLs9EqgamOA</id>
+  <yt:channelId>UCsBjURrPoezykLs9EqgamOA</yt:channelId>
+  <title>Fireship</title>
+  <link rel="alternate" href="https://www.youtube.com/channel/UCsBjURrPoezykLs9EqgamOA"/>
+  <author>
+    <name>Fireship</name>
+    <uri>https://www.youtube.com/channel/UCsBjURrPoezykLs9EqgamOA</uri>
+  </author>
+  <published>2017-05-09T21:22:39+00:00</published>
+
+  <entry>
+    <id>yt:video:jxGJT1weu4w</id>
+    <yt:videoId>jxGJT1weu4w</yt:videoId>
+    <yt:channelId>UCsBjURrPoezykLs9EqgamOA</yt:channelId>
+    <title>Did Anthropic just kill the indie hacker...?</title>
+    <link rel="alternate" href="https://www.youtube.com/watch?v=jxGJT1weu4w"/>
+    <author>
+      <name>Fireship</name>
+      <uri>https://www.youtube.com/channel/UCsBjURrPoezykLs9EqgamOA</uri>
+    </author>
+    <published>2026-07-29T16:33:51+00:00</published>
+    <updated>2026-07-30T08:15:09+00:00</updated>
+    <media:group>
+      <media:title>Did Anthropic just kill the indie hacker...?</media:title>
+      <media:content url="https://www.youtube.com/v/jxGJT1weu4w?version=3" type="application/x-shockwave-flash" width="640" height="390"/>
+      <media:thumbnail url="https://i3.ytimg.com/vi/jxGJT1weu4w/hqdefault.jpg" width="480" height="360"/>
+      <media:description>Anthropic just dropped Opus 5 and it may be killing the indie hacker dream.</media:description>
+      <media:community>
+        <media:starRating count="12345" average="4.92" min="1" max="5"/>
+        <media:statistics views="678901"/>
+      </media:community>
+    </media:group>
+  </entry>
+
+  <entry>
+    <id>yt:video:abcdefghijk</id>
+    <yt:videoId>abcdefghijk</yt:videoId>
+    <title>Rust in 100 Seconds</title>
+    <link rel="alternate" href="https://www.youtube.com/watch?v=abcdefghijk"/>
+    <author>
+      <name>Fireship</name>
+      <uri>https://www.youtube.com/channel/UCsBjURrPoezykLs9EqgamOA</uri>
+    </author>
+    <published>2026-07-20T10:00:00+00:00</published>
+    <media:group>
+      <media:content url="https://www.youtube.com/v/abcdefghijk?version=3" type="application/x-shockwave-flash" width="640" height="390"/>
+      <media:thumbnail url="https://i3.ytimg.com/vi/abcdefghijk/hqdefault.jpg" width="480" height="360"/>
+      <media:description>Rust is a memory-safe systems programming language.</media:description>
+    </media:group>
+  </entry>
+</feed>

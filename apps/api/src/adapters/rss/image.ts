@@ -44,6 +44,8 @@ interface MediaNode {
 export interface ImageCandidateSource {
   'media:thumbnail'?: unknown;
   'media:content'?: unknown;
+  /** MRSS lets a publisher wrap the media elements in a group. YouTube does. */
+  'media:group'?: unknown;
   enclosure?: { url?: string; type?: string } | undefined;
   itunes?: { image?: string } | undefined;
   'content:encoded'?: string | undefined;
@@ -58,12 +60,12 @@ export interface ImageCandidateSource {
  * emit for images even when their links are absolute.
  */
 export function extractImageUrl(item: ImageCandidateSource, base?: string): string | undefined {
-  for (const node of mediaNodes(item['media:thumbnail'])) {
+  for (const node of thumbnailNodes(item)) {
     const url = fromMediaNode(node, base);
     if (url !== undefined) return url;
   }
 
-  for (const node of mediaNodes(item['media:content'])) {
+  for (const node of contentNodes(item)) {
     // `medium` and `type` are advisory and often absent; only reject on a
     // positive statement that this is not an image, never on silence.
     const medium = node.$?.medium;
@@ -85,6 +87,39 @@ export function extractImageUrl(item: ImageCandidateSource, base?: string): stri
   if (itunes !== undefined) return itunes;
 
   return fromHtml(item['content:encoded'] ?? item.content ?? item.summary, base);
+}
+
+/**
+ * The media elements, whether they sit on the item or inside a `media:group`.
+ *
+ * Item level first, so a publisher that emits both keeps the one it chose to
+ * hoist. YouTube emits only the grouped form -- every thumbnail in its feeds is
+ * inside `media:group`, which is why looking at the item alone found 0 of 15.
+ */
+function thumbnailNodes(item: ImageCandidateSource): MediaNode[] {
+  return [
+    ...mediaNodes(item['media:thumbnail']),
+    ...mediaNodes(groupChild(item, 'media:thumbnail')),
+  ];
+}
+
+function contentNodes(item: ImageCandidateSource): MediaNode[] {
+  return [...mediaNodes(item['media:content']), ...mediaNodes(groupChild(item, 'media:content'))];
+}
+
+/**
+ * One child of `media:group`.
+ *
+ * Measured rather than assumed: rss-parser hands the group back as a single
+ * object whose children are arrays, which is not the shape it uses at item
+ * level -- there a lone element arrives unwrapped. `mediaNodes` copes with both,
+ * so this only has to unwrap the group itself.
+ */
+function groupChild(item: ImageCandidateSource, name: string): unknown {
+  const raw = item['media:group'];
+  const group = Array.isArray(raw) ? raw[0] : raw;
+  if (typeof group !== 'object' || group === null) return undefined;
+  return (group as Record<string, unknown>)[name];
 }
 
 /** A media element may be one node or several; xml2js gives whichever it saw. */

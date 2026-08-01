@@ -398,6 +398,37 @@ User-supplied regexes are a ReDoS surface, so there are three layers:
 The heuristic is a heuristic and does not claim to catch every slow pattern. Layer 3 is what
 makes that acceptable.
 
+### YouTube
+
+Works through the ordinary RSS path, no adapter of its own. Paste a channel URL —
+`youtube.com/@Fireship` — and discovery finds the `<link rel="alternate">` YouTube puts in
+every channel page, which points at
+`youtube.com/feeds/videos.xml?channel_id=UC…`. Playlists work the same way with
+`?playlist_id=…`. The legacy `/c/Name` form answers **404** at YouTube's end now; use
+`/@handle`.
+
+The feed itself needed one fix. YouTube emits **nothing** on the entry beyond a title, a
+link and a date: the thumbnail and the description both sit inside `media:group`, and
+rss-parser only keeps namespaced elements it has been told about. Measured against the live
+channel feed, a channel arrived as **0 of 15 thumbnails and 0 of 15 summaries** — fifteen
+bare titles. With `media:group` declared and read, it is 15/15 on both.
+
+There is a trap inside that group worth naming. The first media element is a
+`media:content` of type `application/x-shockwave-flash`, 640×390, listed _before_ the
+thumbnail — big enough that no size floor rejects it. Anything taking the first media
+element stores a dead Flash URL as the article image. The `type` guard that already existed
+for podcast enclosures is what stops it, and a test pins it.
+
+Item-level media still wins over the group's: a publisher emitting both hoisted one
+deliberately. And `media:description` is the _last_ summary source, behind any real body —
+it describes the media rather than the item.
+
+The whole coverage table was re-measured after the change and is unchanged: Ars Technica
+20/20, The Verge 10/10, Reddit 8/25, GitHub 3/10, Hacker News 0/30.
+
+Videos carry no engagement signal — YouTube's feed has no view or like count — so a channel
+scores on recency, source weight and rules alone, like any RSS source.
+
 ### Reddit
 
 Reddit needs an OAuth app. **Registration is not self-service and approval takes two to four

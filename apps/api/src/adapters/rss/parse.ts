@@ -37,6 +37,7 @@ interface RawFeedItem {
   // here would only move the lie into `image.ts`.
   'media:thumbnail'?: unknown;
   'media:content'?: unknown;
+  'media:group'?: unknown;
   'itunes:image'?: string;
   enclosure?: { url?: string; type?: string };
   itunes?: { image?: string };
@@ -83,6 +84,9 @@ const parser = new Parser({
       // keeps namespaced elements it has been told about.
       'media:thumbnail',
       'media:content',
+      // YouTube puts the thumbnail and the description in here rather than on
+      // the entry, so without it a channel arrives with neither.
+      'media:group',
       'itunes:image',
     ],
   },
@@ -127,8 +131,30 @@ function resolveGuid(item: RawFeedItem, url: string): string | undefined {
 
 function resolveSummary(item: RawFeedItem): string | undefined {
   const source =
-    item['content:encoded'] ?? item.content ?? item.summary ?? item.contentSnippet ?? undefined;
+    item['content:encoded'] ??
+    item.content ??
+    item.summary ??
+    item.contentSnippet ??
+    mediaDescription(item);
   return toSummary(source, SUMMARY_MAX_LENGTH);
+}
+
+/**
+ * `media:group > media:description`, the last resort for a summary.
+ *
+ * Last because it is a description of the media rather than the item's own
+ * body, and any real body should win. But for a YouTube entry it is the only
+ * text there is -- without it a video carries a title and nothing else, and a
+ * rule scoped to the summary could never match one.
+ */
+function mediaDescription(item: RawFeedItem): string | undefined {
+  const raw = item['media:group'];
+  const group = Array.isArray(raw) ? raw[0] : raw;
+  if (typeof group !== 'object' || group === null) return undefined;
+
+  const description = (group as Record<string, unknown>)['media:description'];
+  const value = Array.isArray(description) ? description[0] : description;
+  return typeof value === 'string' && value.trim() !== '' ? value : undefined;
 }
 
 function resolveAuthor(item: RawFeedItem): string | undefined {
