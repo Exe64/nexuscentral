@@ -430,6 +430,53 @@ export function Thumbnail({
   );
 }
 
+/**
+ * A source's icon: its favicon, its feed image, or a subreddit's avatar.
+ *
+ * Deliberately not the same component as `Thumbnail`, and deliberately not a
+ * substitute for one. A thumbnail previews *this article*; an icon identifies
+ * the source and is identical on every item from it. Rendering the icon in the
+ * thumbnail's place at the thumbnail's size would fill the image column with
+ * something that never varies, which is worse than an empty box: it draws the
+ * eye and then says nothing.
+ *
+ * `contain`, not `cover` — these are logos with their own padding and cropping
+ * them to a square is how a wordmark loses its first and last letter.
+ */
+export function SourceIcon({
+  src,
+  size = 'sm',
+  className = '',
+}: {
+  src: string | null;
+  /** `sm` sits beside a source name; `lg` fills a card's empty image box. */
+  size?: 'sm' | 'lg';
+  className?: string;
+}): ReactNode {
+  const [failed, setFailed] = useState(false);
+
+  // A guessed `/favicon.ico` is often a 404, so failing is the normal case here,
+  // not the exotic one.
+  if (src === null || failed) return null;
+
+  return (
+    <img
+      src={src}
+      alt=""
+      aria-hidden="true"
+      loading="lazy"
+      decoding="async"
+      referrerPolicy="no-referrer"
+      onError={() => setFailed(true)}
+      className={[
+        'shrink-0 rounded object-contain',
+        size === 'sm' ? 'h-4 w-4' : 'h-10 w-10',
+        className,
+      ].join(' ')}
+    />
+  );
+}
+
 /** Monospace, for slugs, patterns and anything the user must copy exactly. */
 export function Mono({ children }: { children: ReactNode }): ReactNode {
   return <code className="bg-raised text-secondary rounded px-1 py-0.5 text-xs">{children}</code>;

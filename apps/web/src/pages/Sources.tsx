@@ -29,6 +29,7 @@ import {
   PageHeader,
   Panel,
   SelectField,
+  SourceIcon,
   TD,
   TH,
   TR,
@@ -466,18 +467,24 @@ function SourceRow({ source, t }: { source: Source; t: Translate }): ReactNode {
   return (
     <TR>
       <TD className="max-w-xs">
-        {source.siteUrl === null ? (
-          <span className="text-primary text-sm font-medium">{source.title}</span>
-        ) : (
-          <a
-            href={source.siteUrl}
-            target="_blank"
-            rel="noreferrer noopener"
-            className="text-primary hover:text-accent text-sm font-medium"
-          >
-            {source.title}
-          </a>
-        )}
+        {/* The icon is shown here because this is the page where you would
+            notice it resolved to the wrong thing -- a guessed /favicon.ico, or
+            Reddit's generic logo on a subreddit added without credentials. */}
+        <div className="flex items-center gap-2">
+          <SourceIcon src={source.iconUrl} />
+          {source.siteUrl === null ? (
+            <span className="text-primary text-sm font-medium">{source.title}</span>
+          ) : (
+            <a
+              href={source.siteUrl}
+              target="_blank"
+              rel="noreferrer noopener"
+              className="text-primary hover:text-accent text-sm font-medium"
+            >
+              {source.title}
+            </a>
+          )}
+        </div>
         <span className="text-muted mt-0.5 block truncate text-xs" title={source.identifier}>
           {source.identifier}
         </span>

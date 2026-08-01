@@ -304,6 +304,25 @@ among them, refuse a request naming another site, and sending one leaks the read
 They are lazy, sit in a fixed box so the list does not reflow as they arrive, and remove
 themselves on error rather than showing a broken-image icon.
 
+#### Source icons are not thumbnails
+
+A source's icon — its favicon, its feed image, a subreddit's avatar — is shown beside the
+source name in every layout, and on the Sources page, which is where you would notice it
+resolved to the wrong thing.
+
+It is **not** used as an article thumbnail. A thumbnail previews _this_ article; an icon is
+identical on every item from that source, so putting it in the image column at the image's
+size fills a whole column with something that never varies — worse than an empty box,
+because it draws the eye and then says nothing. Cards mode does use it to fill the box when
+an article has no preview, drawn small and centred on the muted background so it reads as
+"no preview, here is the source" rather than pretending to be one. It is rendered `contain`,
+not `cover`: cropping a wordmark to a square loses its first and last letter.
+
+**A subreddit added without Reddit credentials gets Reddit's generic logo**, not its own
+avatar. The feed's `<icon>` is `redditstatic.com/icon.png` for every subreddit, and
+`reddit.com/r/X/about.json` answers 403 unauthenticated. The `reddit` adapter reads the real
+`community_icon` through the OAuth API, so this fixes itself when credentials arrive.
+
 ### Keyboard
 
 `j` / `k` move, `o` opens, `m` toggles read, `s` stars, `r` refreshes, `/` focuses search,

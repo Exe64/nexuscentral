@@ -22,7 +22,7 @@ import {
 } from '../api/queries.ts';
 import { ScoreBreakdown } from '../components/ScoreBreakdown.tsx';
 import { TagChip } from '../components/TagChip.tsx';
-import { Thumbnail } from '../components/ui.tsx';
+import { SourceIcon, Thumbnail } from '../components/ui.tsx';
 import { useKeyboardShortcuts, type ShortcutMap } from '../hooks/useKeyboardShortcuts.ts';
 import { useT, type Translate } from '../i18n.tsx';
 import { absoluteTime, formatNumber, relativeTime } from '../lib/format.ts';
@@ -107,15 +107,26 @@ function ItemRow({
         <div className="flex items-baseline gap-2">
           <h3 className="mr-auto truncate text-sm leading-snug">{titleLink}</h3>
           {item.starred && <span aria-label={t('reader.item.starred')}>★</span>}
-          <span className="text-muted shrink-0 text-xs">{item.source.title}</span>
+          <span className="text-muted flex shrink-0 items-center gap-1 text-xs">
+            <SourceIcon src={item.source.iconUrl} />
+            {item.source.title}
+          </span>
           <span className="shrink-0 text-xs">{scoreButton}</span>
         </div>
       ) : (
         <div className={view === 'cards' ? 'flex gap-3' : undefined}>
-          {view === 'cards' && item.imageUrl !== null && (
-            // Fixed box, so the list does not reflow as thumbnails arrive.
-            <div className="h-20 w-28 shrink-0 sm:h-24 sm:w-36">
-              <Thumbnail src={item.imageUrl} />
+          {view === 'cards' && (
+            // Fixed box, so the list does not reflow as thumbnails arrive, and
+            // so a feed where only some items have a preview still lines up.
+            <div className="bg-raised flex h-20 w-28 shrink-0 items-center justify-center overflow-hidden rounded sm:h-24 sm:w-36">
+              {item.imageUrl === null ? (
+                // Not a preview and drawn so it does not pretend to be one:
+                // small, centred, on the muted background rather than filling
+                // the box the way an article image does.
+                <SourceIcon src={item.source.iconUrl} size="lg" className="opacity-60" />
+              ) : (
+                <Thumbnail src={item.imageUrl} />
+              )}
             </div>
           )}
 
@@ -123,7 +134,10 @@ function ItemRow({
             <h3 className="text-base leading-snug font-medium">{titleLink}</h3>
 
             <p className="text-secondary mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
-              <span>{item.source.title}</span>
+              <span className="flex items-center gap-1">
+                <SourceIcon src={item.source.iconUrl} />
+                {item.source.title}
+              </span>
               <time dateTime={item.publishedAt} title={absoluteTime(item.publishedAt)}>
                 {relativeTime(item.publishedAt)}
               </time>
