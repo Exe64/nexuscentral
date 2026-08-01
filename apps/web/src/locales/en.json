@@ -364,5 +364,22 @@
   "sources.add.intro": "Paste a feed URL, a blog address, r/subreddit or an @handle. The preview shows real items before anything is saved.",
   "sources.list.title": "Tracked sources",
   "settings.retention.intro": "How long items are kept. The nightly purge runs at 03:00.",
-  "settings.retention.starredNote": "Starred items are never deleted, however old."
+  "settings.retention.starredNote": "Starred items are never deleted, however old.",
+  "settings.update.title": "Updates",
+  "settings.update.intro": "Compares the commit this build was deployed from with the head of the public repository. One request to GitHub, cached for thirty minutes.",
+  "settings.update.state.up_to_date": "Up to date",
+  "settings.update.state.update_available": "Update available",
+  "settings.update.state.unknown": "Cannot tell",
+  "settings.update.state.disabled": "Update checking is turned off.",
+  "settings.update.unknown.no_build_sha": "Cannot tell: this build carries no commit sha, which is normal outside a deployment.",
+  "settings.update.unknown.unreachable": "Cannot tell: GitHub could not be reached.",
+  "settings.update.unknown.rate_limited": "Cannot tell: GitHub's hourly rate limit is spent. It resets within the hour.",
+  "settings.update.unknown.unreadable_response": "Cannot tell: GitHub answered something unexpected.",
+  "settings.update.running": "Running",
+  "settings.update.latest": "Latest",
+  "settings.update.noSha": "unknown",
+  "settings.update.check": "Check again",
+  "settings.update.checking": "Checking…",
+  "settings.update.checkedAt": "Checked {when}.",
+  "settings.update.viewChanges": "View the changes on GitHub"
 }

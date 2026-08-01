@@ -61,6 +61,12 @@ services:
       REDDIT_USER_AGENT: ${REDDIT_USER_AGENT:-nexuscentral/1.0 (self-hosted personal aggregator)}
       NITTER_BASE_URLS: ${NITTER_BASE_URLS:-}
       ALLOW_PRIVATE_TARGETS: ${ALLOW_PRIVATE_TARGETS:-false}
+      # Set by deploy.sh from the commit it just checked out. Empty in any other
+      # way of starting the stack, and the update check reports "cannot tell"
+      # rather than inventing a version.
+      GIT_SHA: ${GIT_SHA:-}
+      UPDATE_REPO: ${UPDATE_REPO:-Exe64/nexuscentral}
+      UPDATE_CHECK_ENABLED: ${UPDATE_CHECK_ENABLED:-true}
 
   web:
     build:

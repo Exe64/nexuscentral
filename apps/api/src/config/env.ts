@@ -54,6 +54,32 @@ const schema = z.object({
   NITTER_BASE_URLS: csv.default(''),
 
   ALLOW_PRIVATE_TARGETS: booleanish.default('false'),
+
+  /**
+   * The commit this build was deployed from, set by deploy.sh.
+   *
+   * Optional because a dev run has none, and the update check reports "unknown"
+   * rather than guessing. Short or full: deploy.sh passes `rev-parse --short`
+   * and GitHub answers with 40 characters, so the comparison is by prefix.
+   */
+  GIT_SHA: z
+    .string()
+    .regex(/^[0-9a-f]{7,40}$/i, 'GIT_SHA must be a hex commit sha')
+    .optional(),
+
+  /**
+   * Constrained to `owner/repo` because it is interpolated into a GitHub API
+   * path. Unvalidated, `UPDATE_REPO=x/y/../../users/z` would reach a different
+   * endpoint entirely -- operator-supplied rather than user-supplied, but one
+   * regex is cheaper than reasoning about who can set it.
+   */
+  UPDATE_REPO: z
+    .string()
+    .regex(/^[\w.-]+\/[\w.-]+$/, 'UPDATE_REPO must look like owner/repo')
+    .default('Exe64/nexuscentral'),
+
+  /** An off switch for the one outbound call the app makes on its own behalf. */
+  UPDATE_CHECK_ENABLED: booleanish.default('true'),
 });
 
 export type Env = z.infer<typeof schema>;

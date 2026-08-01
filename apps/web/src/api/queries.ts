@@ -32,6 +32,7 @@ import type {
   TagWithCounts,
   ThemeMode,
   ThemePreset,
+  UpdateStatus,
   WebhookKind,
   Widget,
   WidgetType,
@@ -61,6 +62,7 @@ export const keys = {
   dashboard: (id: number) => ['dashboards', id] as const,
   dashboardData: (id: number) => ['dashboards', id, 'data'] as const,
   settings: ['settings'] as const,
+  update: ['update'] as const,
   health: ['health'] as const,
   session: ['auth', 'session'] as const,
   sessions: ['auth', 'sessions'] as const,
@@ -626,6 +628,28 @@ export function useAcknowledgeAlert(): UseMutationResult<void, Error, string> {
     onSuccess: () => {
       void client.invalidateQueries({ queryKey: ['dashboards'] });
     },
+  });
+}
+
+// --- update ----------------------------------------------------------------
+
+/**
+ * The API caches the GitHub call for 30 minutes, so this stays cheap however
+ * often the page is opened. `force` is the explicit "check again" button, and
+ * the API applies its own floor to it.
+ */
+export function useUpdateStatus(): UseQueryResult<UpdateStatus> {
+  return useQuery({
+    queryKey: keys.update,
+    queryFn: async () => (await apiFetch<Envelope<UpdateStatus>>('/update')).data,
+  });
+}
+
+export function useCheckForUpdate(): UseMutationResult<UpdateStatus, Error, void> {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async () => (await apiFetch<Envelope<UpdateStatus>>('/update?force=true')).data,
+    onSuccess: (data) => client.setQueryData(keys.update, data),
   });
 }
 

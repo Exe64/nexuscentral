@@ -14,6 +14,7 @@ import { useSettings, useTestNitter, useTestReddit, useUpdateSettings } from '..
 import { AlertsPanel } from '../components/AlertsPanel.tsx';
 import { AppearancePanel } from '../components/AppearancePanel.tsx';
 import { SecurityPanel } from '../components/SecurityPanel.tsx';
+import { UpdatePanel } from '../components/UpdatePanel.tsx';
 import { Button, Notice, Panel } from '../components/ui.tsx';
 import { useT, type Translate } from '../i18n.tsx';
 
@@ -295,6 +296,7 @@ export function Settings(): ReactNode {
         <RedditPanel settings={settings.data} t={t} />
         <NitterPanel settings={settings.data} t={t} />
         <RetentionPanel settings={settings.data} t={t} />
+        <UpdatePanel />
       </div>
     </div>
   );

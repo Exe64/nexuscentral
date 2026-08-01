@@ -473,6 +473,36 @@ are counted, and at three the source is reported as `silentlyEmpty` — separate
 `failing`, because nothing about those runs looked like an error. `GET /api/health` degrades
 on it, and `GET /api/sources?health=unhealthy` lists the affected sources.
 
+## Updates
+
+Settings shows whether the running build is the newest commit on `main`. One request to
+`api.github.com/repos/<repo>/commits?sha=main&per_page=1`, cached for thirty minutes, no
+token — the repository is public and GitHub allows 60 unauthenticated requests an hour per
+IP.
+
+`/compare/{sha}...main` would also count the commits between, and it was measured before
+being rejected: it carries the full patch for every changed file, **132 KB across five
+commits** of this repository, growing with how far behind you are. That makes it heaviest
+exactly when you have reason to check. The commits endpoint is 6 KB flat, and the compare
+_page_ is linked instead — the diff stays one click away and costs this app nothing.
+
+`deploy.sh` exports `GIT_SHA` from the commit it checks out, and compose passes it to the
+API. A runtime variable, not a build arg: a build arg invalidates the image layer on every
+commit, and `--no-build` would then ship an image labelled with the previous deployment's
+sha. The comparison is by **prefix** — deploy.sh passes seven characters and GitHub answers
+with forty, and `===` would call every deployment stale.
+
+**`unknown` is a state, not an error.** A dev run has no `GIT_SHA`; GitHub can be
+unreachable, rate-limited, or answer something unexpected. Each says so in those words. The
+one answer that must never appear on a failure is "Up to date": a wrong "Update available"
+costs a click, a wrong "Up to date" means running a known-broken build and believing
+otherwise. Both test suites assert it directly.
+
+The refresh button forces a check past the cache, but not past a 60-second floor, and never
+past a rate-limit backoff — retrying inside GitHub's window earns another 403, and that 403
+counts against the next window too. Set `UPDATE_CHECK_ENABLED=false` to stop the check
+entirely.
+
 ## Testing
 
 ```bash

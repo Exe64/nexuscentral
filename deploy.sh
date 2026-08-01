@@ -92,6 +92,13 @@ cd "$APP_DIR"
 NEW_SHA="$(git rev-parse --short HEAD)"
 log "Deploying ${PREV_SHA} -> ${NEW_SHA}"
 
+# Exported so `docker compose` interpolates it into the api service's
+# environment. This is what the update check compares against GitHub, and it is
+# a runtime variable rather than a build arg on purpose: a build arg would
+# invalidate the image layer on every commit, and `--no-build` would then ship
+# an image labelled with the previous deployment's sha.
+export GIT_SHA="$NEW_SHA"
+
 # 4. PostgreSQL first, before the build.
 #
 #    Ahead of the build so that the credential check below fails in seconds rather

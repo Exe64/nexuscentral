@@ -21,6 +21,7 @@ import { rulesRouter } from './routes/rules.js';
 import { settingsRouter } from './routes/settings.js';
 import { sourcesRouter } from './routes/sources.js';
 import { tagsRouter } from './routes/tags.js';
+import { updateRouter } from './routes/update.js';
 import { errorHandler, notFoundHandler } from './errors.js';
 
 export function createApp(): Express {
@@ -85,6 +86,7 @@ export function createApp(): Express {
   app.use('/api', alertsRouter);
   app.use('/api', customApiRouter);
   app.use('/api', itemsRouter);
+  app.use('/api', updateRouter);
 
   app.use(notFoundHandler);
   app.use(errorHandler);
