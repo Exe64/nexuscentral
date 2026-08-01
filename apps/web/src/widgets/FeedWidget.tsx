@@ -12,8 +12,10 @@ import {
   type FeedWidgetConfig,
   type FeedWidgetData,
   type Item,
+  type Source,
 } from '@nexuscentral/shared';
-import { useTags } from '../api/queries.ts';
+import { useSources, useTags } from '../api/queries.ts';
+import { SourcePicker } from '../components/SourcePicker.tsx';
 import { TagChip } from '../components/TagChip.tsx';
 import { useT, type Translate } from '../i18n.tsx';
 import { absoluteTime, formatNumber, relativeTime } from '../lib/format.ts';
@@ -108,10 +110,37 @@ export const FeedWidget = memo(function FeedWidget({ config, data }: WidgetBodyP
   );
 });
 
+/**
+ * Which sources this config actually draws from.
+ *
+ * Mirrors `applyFilters` in the API's item store: OR within a facet ("any of
+ * these tags"), AND across the two. That combination is easy to get wrong from
+ * the form -- tick "Tech" and tick a source that carries no tags and the answer
+ * is nothing at all, with no hint on screen as to why. Computing it here lets
+ * the form say so before the widget is saved.
+ *
+ * An id in `sourceIds` whose source has since been deleted simply matches
+ * nothing, which is exactly what the widget will do, and the count says it.
+ */
+export function matchingSources(
+  sources: readonly Source[],
+  tagIds: readonly number[],
+  sourceIds: readonly number[],
+): Source[] {
+  return sources.filter(
+    (source) =>
+      (tagIds.length === 0 || source.tags.some((tag) => tagIds.includes(tag.id))) &&
+      (sourceIds.length === 0 || sourceIds.includes(source.id)),
+  );
+}
+
 export function FeedConfigForm({ value, onChange }: WidgetConfigFormProps): ReactNode {
   const t = useT();
   const tags = useTags();
+  const sources = useSources();
   const config = value as unknown as FeedWidgetConfig;
+  const allSources = sources.data ?? [];
+  const matching = matchingSources(allSources, config.tagIds, config.sourceIds);
 
   const set = (patch: Partial<FeedWidgetConfig>): void =>
     onChange({ ...value, ...patch } as Record<string, unknown>);
@@ -209,6 +238,30 @@ export function FeedConfigForm({ value, onChange }: WidgetConfigFormProps): Reac
             ))}
           </div>
         </fieldset>
+      )}
+
+      {allSources.length > 0 && (
+        <fieldset>
+          <legend className="text-secondary">{t('widget.feed.sourceFilter')}</legend>
+          <div className="mt-1">
+            <SourcePicker
+              sources={allSources}
+              selected={config.sourceIds}
+              onChange={(sourceIds) => set({ sourceIds })}
+            />
+          </div>
+        </fieldset>
+      )}
+
+      {allSources.length > 0 && (
+        <p className={matching.length === 0 ? 'text-negative text-xs' : 'text-muted text-xs'}>
+          {matching.length === 0
+            ? t('widget.feed.matchesNone')
+            : t('widget.feed.matches', {
+                count: formatNumber(matching.length),
+                total: formatNumber(allSources.length),
+              })}
+        </p>
       )}
     </div>
   );

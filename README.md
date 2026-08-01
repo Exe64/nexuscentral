@@ -323,6 +323,26 @@ avatar. The feed's `<icon>` is `redditstatic.com/icon.png` for every subreddit, 
 `reddit.com/r/X/about.json` answers 403 unauthenticated. The `reddit` adapter reads the real
 `community_icon` through the OAuth API, so this fixes itself when credentials arrive.
 
+### Feed widget filters
+
+A feed widget narrows by **tags**, by **sources**, or by both. Leaving a filter empty means
+"everything", so a fresh widget draws from the whole collection.
+
+The two combine the way faceted search does, and the way the reader already did: **any of**
+the selected tags, **any of** the selected sources, but a source has to satisfy **both**
+lists to contribute. That is the one combination easy to get wrong from a form — tick a tag,
+tick a source that does not carry it, and the widget is correct and permanently empty. So
+the form counts the intersection live and says `Draws from 4 of 27 sources.` under the two
+pickers, and says why when the count is zero. An id left behind by a deleted source matches
+nothing and shows up in that count the same way.
+
+The source list is searchable above eight sources, on title **and** identifier — the same
+pair the API's `q` filter searches, so the same words find the same sources here and on the
+Sources page. Filtering is client-side because the list arrives whole and unpaginated. A
+ticked source stays on screen even when the search excludes it; otherwise you filter, tick,
+filter again, and what you picked is neither reviewable nor removable without reconstructing
+the search that found it.
+
 ### Keyboard
 
 `j` / `k` move, `o` opens, `m` toggles read, `s` stars, `r` refreshes, `/` focuses search,
