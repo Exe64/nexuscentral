@@ -503,6 +503,23 @@ past a rate-limit backoff — retrying inside GitHub's window earns another 403,
 counts against the next window too. Set `UPDATE_CHECK_ENABLED=false` to stop the check
 entirely.
 
+### The indicator
+
+The application bar carries a small update indicator, and it links to
+`/settings#updates` rather than to the top of a long settings page.
+
+**It is shown only when there is something to act on** — an update available, a deploy
+running, a request nothing picked up, a deploy that failed. A badge that is lit when
+nothing is wrong is a badge you stop seeing, and it would then be missing on the one day it
+mattered. `unknown` shows nothing either: it is the _normal_ state of a dev run, which has
+no build sha, and a badge permanently lit outside production is the same failure by another
+route.
+
+The run outranks the comparison. After a failed deploy the check still says "update
+available", and "the last attempt failed" is the more useful of the two facts. The glyph
+alone is ambiguous and the words are hidden on a narrow window, so the accessible name
+carries the state either way.
+
 ### In-app updates
 
 Settings can also _perform_ the update. Optional, off until you install a systemd timer,

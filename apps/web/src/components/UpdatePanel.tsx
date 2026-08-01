@@ -7,7 +7,8 @@
  * the one answer that is actively misleading.
  */
 
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
+import { useLocation } from 'react-router-dom';
 import type { UpdateRun, UpdateStatus } from '@nexuscentral/shared';
 import { useCheckForUpdate, useRunUpdate, useUpdateStatus } from '../api/queries.ts';
 import { useT, type Translate } from '../i18n.tsx';
@@ -78,9 +79,23 @@ export function UpdatePanel(): ReactNode {
   const check = useCheckForUpdate();
   const run = useRunUpdate();
   const [confirming, setConfirming] = useState(false);
+  const { hash } = useLocation();
+
+  // The indicator in the application bar links to `/settings#updates`. Settings
+  // is a long page and this panel is last on it, so without this the link would
+  // land above the fold and leave you to hunt for it.
+  //
+  // By id rather than a ref: the id is already this panel's public anchor, and
+  // a browser following a hash would use the same one. React Router does not
+  // scroll for a hash on client-side navigation, which is the only reason this
+  // is written out at all.
+  useEffect(() => {
+    if (hash !== '#updates') return;
+    document.getElementById('updates')?.scrollIntoView({ block: 'center' });
+  }, [hash]);
 
   return (
-    <Panel title={t('settings.update.title')} description={t('settings.update.intro')}>
+    <Panel id="updates" title={t('settings.update.title')} description={t('settings.update.intro')}>
       {status.isPending && <p className="text-secondary text-sm">{t('common.loading')}</p>}
 
       {status.error !== null && <Notice tone="error">{status.error.message}</Notice>}

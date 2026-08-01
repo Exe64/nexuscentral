@@ -259,14 +259,20 @@ export function Panel({
   description,
   children,
   className = '',
+  id,
 }: {
   title?: string;
   description?: string;
   children: ReactNode;
   className?: string;
+  /** Anchor target, so a link elsewhere can point at this panel. */
+  id?: string;
 }): ReactNode {
   return (
-    <section className={`bg-surface border-subtle rounded-lg border p-4 ${className}`}>
+    <section
+      {...(id === undefined ? {} : { id })}
+      className={`bg-surface border-subtle rounded-lg border p-4 ${className}`}
+    >
       {title !== undefined && <h2 className="text-primary text-base font-semibold">{title}</h2>}
       {description !== undefined && (
         <p className="text-secondary mt-1 max-w-prose text-sm">{description}</p>

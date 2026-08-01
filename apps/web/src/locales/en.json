@@ -391,5 +391,9 @@
   "settings.update.run.deployed": "Deployed {from} → {to}.",
   "settings.update.confirm.title": "Update now?",
   "settings.update.confirm.body": "The host will pull the new commit, rebuild, dump the database, migrate it and restart the stack. That takes a few minutes, during which the application is unavailable and this page will not load. A dump is taken before the migration, and a failed migration or health check rolls back to the current commit.",
-  "settings.update.confirm.go": "Update"
+  "settings.update.confirm.go": "Update",
+  "topbar.update.available": "Update available",
+  "topbar.update.running": "Updating…",
+  "topbar.update.unclaimed": "Update not picked up",
+  "topbar.update.failed": "Update failed"
 }

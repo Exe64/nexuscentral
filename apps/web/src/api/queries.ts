@@ -652,6 +652,11 @@ export function useUpdateStatus(): UseQueryResult<UpdateInfo> {
       return state === 'requested' || state === 'running' ? 5000 : false;
     },
     retry: 3,
+    // The indicator lives in the application bar, so this query mounts on every
+    // page. Without a stale window each navigation would refetch; the server
+    // caches the GitHub call for thirty minutes anyway, so a fresher answer here
+    // would mostly be the same answer.
+    staleTime: 60_000,
   });
 }
 

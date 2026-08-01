@@ -12,6 +12,7 @@ import { useEffect, useRef, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { useT } from '../i18n.tsx';
 import { useUiStore } from '../stores/ui.ts';
+import { UpdateIndicator } from './UpdateIndicator.tsx';
 import { useThemeStore } from '../theme/store.ts';
 
 /** Shared by the four icon buttons, so they cannot drift apart. */
@@ -75,6 +76,8 @@ export function TopBar(): ReactNode {
         onChange={(event) => setSearch(event.target.value)}
         className="bg-base border-subtle text-primary w-32 rounded border px-2 py-1 text-sm sm:w-56"
       />
+
+      <UpdateIndicator />
 
       <button
         type="button"
