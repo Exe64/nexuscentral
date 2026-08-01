@@ -77,6 +77,25 @@ export const HEALTH_OK: StubRoute = {
   body: { status: 'ok', version: '0.1.0', uptimeSeconds: 12, db: { reachable: true } },
 };
 
+/** Settings as the API returns them, for pages that read a preference. */
+export function makeSettings(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    themeMode: 'system',
+    themePreset: 'default',
+    readerView: 'list',
+    accentHue: 250,
+    accentChroma: 0.14,
+    itemsRetentionDays: 90,
+    alertWebhookUrl: null,
+    alertWebhookKind: 'none',
+    reddit: { configured: false, origin: null, envOverridesSettings: false },
+    nitterBaseUrls: [],
+    nitterBaseUrlsOrigin: 'env',
+    updatedAt: '2026-07-30T09:00:00.000Z',
+    ...overrides,
+  };
+}
+
 export function makeItem(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
     id: '1',
@@ -88,6 +107,7 @@ export function makeItem(overrides: Record<string, unknown> = {}): Record<string
     fetchedAt: new Date().toISOString(),
     engagementScore: null,
     engagementComments: null,
+    imageUrl: null,
     score: 8.4,
     matchedRules: [],
     readAt: null,

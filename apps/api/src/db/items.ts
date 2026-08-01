@@ -22,6 +22,7 @@ interface ItemRow {
   fetched_at: Date;
   engagement_score: number | null;
   engagement_comments: number | null;
+  image_url: string | null;
   score: number;
   matched_rules: number[];
   read_at: Date | null;
@@ -34,7 +35,7 @@ interface ItemRow {
 
 const ITEM_COLUMNS = `
   i.id, i.url, i.title, i.summary, i.author, i.published_at, i.fetched_at,
-  i.engagement_score, i.engagement_comments, i.score, i.matched_rules,
+  i.engagement_score, i.engagement_comments, i.image_url, i.score, i.matched_rules,
   i.read_at, i.starred,
   s.id AS source_id, s.title AS source_title, s.kind AS source_kind,
   s.icon_url AS source_icon_url
@@ -51,6 +52,7 @@ function toItem(row: ItemRow, tags: Tag[]): Item {
     fetchedAt: row.fetched_at.toISOString(),
     engagementScore: row.engagement_score,
     engagementComments: row.engagement_comments,
+    imageUrl: row.image_url,
     score: row.score,
     matchedRules: row.matched_rules,
     readAt: row.read_at?.toISOString() ?? null,
@@ -307,12 +309,12 @@ export async function insertItems(
   const { rows } = await query<{ id: string }>(
     `INSERT INTO items
        (source_id, content_hash, url, title, summary, author, published_at,
-        engagement_score, engagement_comments, raw)
-     SELECT $1::int, h, u, t, sm, a, p, es, ec, r
+        engagement_score, engagement_comments, image_url, raw)
+     SELECT $1::int, h, u, t, sm, a, p, es, ec, img, r
        FROM unnest(
          $2::bytea[], $3::text[], $4::text[], $5::text[], $6::text[],
-         $7::timestamptz[], $8::int[], $9::int[], $10::jsonb[]
-       ) AS batch(h, u, t, sm, a, p, es, ec, r)
+         $7::timestamptz[], $8::int[], $9::int[], $10::text[], $11::jsonb[]
+       ) AS batch(h, u, t, sm, a, p, es, ec, img, r)
      ON CONFLICT (content_hash) DO NOTHING
      RETURNING id`,
     [
@@ -325,6 +327,7 @@ export async function insertItems(
       batch.map((entry) => entry.item.publishedAt),
       batch.map((entry) => entry.item.engagementScore ?? null),
       batch.map((entry) => entry.item.engagementComments ?? null),
+      batch.map((entry) => entry.item.imageUrl ?? null),
       batch.map((entry) => JSON.stringify(entry.item.raw ?? null)),
     ],
   );

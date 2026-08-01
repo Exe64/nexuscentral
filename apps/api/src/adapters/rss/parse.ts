@@ -9,6 +9,7 @@
 import Parser from 'rss-parser';
 import type { NormalizedItem } from '@nexuscentral/shared';
 import { SUMMARY_MAX_LENGTH, toPlainTitle, toSummary } from '../../lib/text.js';
+import { extractImageUrl } from './image.js';
 
 /**
  * `rss-parser`'s own types are `any`-heavy. Narrowing to the fields actually
@@ -31,6 +32,14 @@ interface RawFeedItem {
   summary?: string;
   'content:encoded'?: string;
   'dc:creator'?: string;
+  // Image channels. `unknown` is deliberate: xml2js hands back a single node or
+  // an array depending on how many the document had, and pretending otherwise
+  // here would only move the lie into `image.ts`.
+  'media:thumbnail'?: unknown;
+  'media:content'?: unknown;
+  'itunes:image'?: string;
+  enclosure?: { url?: string; type?: string };
+  itunes?: { image?: string };
 }
 
 interface RawFeed {
@@ -63,7 +72,19 @@ export class FeedParseError extends Error {
 
 const parser = new Parser({
   customFields: {
-    item: ['content:encoded', 'dc:creator', 'updated', 'published', 'summary', 'id'],
+    item: [
+      'content:encoded',
+      'dc:creator',
+      'updated',
+      'published',
+      'summary',
+      'id',
+      // Declared or rss-parser drops them: they are namespaced, and it only
+      // keeps namespaced elements it has been told about.
+      'media:thumbnail',
+      'media:content',
+      'itunes:image',
+    ],
   },
 });
 
@@ -155,6 +176,10 @@ export async function parseFeed(xml: string, baseUrl?: string): Promise<ParsedFe
     const guid = resolveGuid(raw, url);
     const summary = resolveSummary(raw);
     const author = resolveAuthor(raw);
+    // Resolved against the item's own URL, not the feed's: a relative image in
+    // an entry is relative to the article, and those differ on any site whose
+    // feed lives at a different depth from its posts.
+    const imageUrl = extractImageUrl(raw, url);
 
     items.push({
       url,
@@ -163,6 +188,7 @@ export async function parseFeed(xml: string, baseUrl?: string): Promise<ParsedFe
       title: title.length > 0 ? title : url,
       ...(summary === undefined ? {} : { summary }),
       ...(author === undefined ? {} : { author }),
+      ...(imageUrl === undefined ? {} : { imageUrl }),
       publishedAt: date,
       ...(guid === undefined ? {} : { guid }),
       raw,

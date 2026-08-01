@@ -48,6 +48,16 @@ export type ThemePreset = (typeof THEME_PRESETS)[number];
 /** Presets whose native look is dark; selecting one switches the mode to match. */
 export const DARK_NATIVE_PRESETS: readonly ThemePreset[] = ['terminal', 'vt220', 'powershell'];
 
+/**
+ * How the reader lays items out.
+ *
+ * `list`   -- title, meta and summary. The densest view that still shows context.
+ * `cards`  -- adds the preview thumbnail. The mode images are for.
+ * `titles` -- one line each, for emptying a queue of several hundred.
+ */
+export const READER_VIEWS = ['list', 'cards', 'titles'] as const;
+export type ReaderView = (typeof READER_VIEWS)[number];
+
 export const WEBHOOK_KINDS = ['none', 'ntfy', 'gotify', 'discord', 'generic'] as const;
 export type WebhookKind = (typeof WEBHOOK_KINDS)[number];
 
@@ -121,6 +131,8 @@ export interface Item {
   fetchedAt: string;
   engagementScore: number | null;
   engagementComments: number | null;
+  /** Preview thumbnail, null when neither the feed nor the article offered one. */
+  imageUrl: string | null;
   score: number;
   matchedRules: number[];
   readAt: string | null;
@@ -244,6 +256,7 @@ export interface RedditCredentialStatus {
 export interface Settings {
   themeMode: ThemeMode;
   themePreset: ThemePreset;
+  readerView: ReaderView;
   accentHue: number;
   accentChroma: number;
   itemsRetentionDays: number;

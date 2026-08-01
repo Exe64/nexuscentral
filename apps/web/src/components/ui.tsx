@@ -18,7 +18,7 @@
 
 import type { ButtonHTMLAttributes, ReactNode, SelectHTMLAttributes } from 'react';
 import type { InputHTMLAttributes, TextareaHTMLAttributes } from 'react';
-import { useId } from 'react';
+import { useId, useState } from 'react';
 
 /* -------------------------------------------------------------------------- */
 /* Buttons                                                                     */
@@ -371,6 +371,52 @@ export function TD({
     >
       {children}
     </td>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Thumbnails                                                                  */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * An item's preview image, hotlinked from wherever it lives.
+ *
+ * Four things are deliberate:
+ *
+ * - `referrerPolicy="no-referrer"`. Several CDNs -- Reddit's `preview.redd.it`
+ *   among them -- refuse a request that names another site as its referer, and
+ *   sending one leaks the reading history anyway.
+ * - `loading="lazy"`. A page of fifty cards must not open fifty connections.
+ * - A fixed box with `object-cover`. Reserving the space stops the list from
+ *   reflowing as images arrive, which is what makes a feed unreadable while it
+ *   loads.
+ * - `onError` hides it. A dead thumbnail is very common -- articles move, CDNs
+ *   expire signed URLs -- and a broken-image icon is worse than no image.
+ */
+export function Thumbnail({
+  src,
+  className = '',
+}: {
+  src: string | null;
+  className?: string;
+}): ReactNode {
+  const [failed, setFailed] = useState(false);
+
+  if (src === null || failed) return null;
+
+  return (
+    <img
+      src={src}
+      alt=""
+      // Decorative: the title next to it already names the item, and announcing
+      // a filename would only add noise.
+      aria-hidden="true"
+      loading="lazy"
+      decoding="async"
+      referrerPolicy="no-referrer"
+      onError={() => setFailed(true)}
+      className={`bg-raised h-full w-full rounded object-cover ${className}`}
+    />
   );
 }
 

@@ -8,18 +8,21 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import type { Item, ItemSort } from '@nexuscentral/shared';
+import { READER_VIEWS, type Item, type ItemSort, type ReaderView } from '@nexuscentral/shared';
 import {
   useItems,
   useMarkAllRead,
   useSetItemRead,
   useSetItemStarred,
+  useSettings,
   useSources,
   useTags,
+  useUpdateSettings,
   type ItemListFilters,
 } from '../api/queries.ts';
 import { ScoreBreakdown } from '../components/ScoreBreakdown.tsx';
 import { TagChip } from '../components/TagChip.tsx';
+import { Thumbnail } from '../components/ui.tsx';
 import { useKeyboardShortcuts, type ShortcutMap } from '../hooks/useKeyboardShortcuts.ts';
 import { useT, type Translate } from '../i18n.tsx';
 import { absoluteTime, formatNumber, relativeTime } from '../lib/format.ts';
@@ -27,9 +30,19 @@ import { useUiStore } from '../stores/ui.ts';
 
 const SORTS: ItemSort[] = ['published', 'score', 'engagement'];
 
+/**
+ * One item, in whichever layout the reader is set to.
+ *
+ * One component rather than three: the focus handling, the open-marks-read
+ * behaviour and the breakdown popover are the bulk of it and are identical in
+ * every mode. Only the body differs, and it differs in ways worth stating --
+ * `titles` deliberately drops the summary and the action buttons, because a mode
+ * whose whole point is density does not get to keep the furniture.
+ */
 function ItemRow({
   item,
   index,
+  view,
   focused,
   t,
   onFocus,
@@ -39,6 +52,7 @@ function ItemRow({
 }: {
   item: Item;
   index: number;
+  view: ReaderView;
   focused: boolean;
   t: Translate;
   onFocus: (index: number) => void;
@@ -48,6 +62,34 @@ function ItemRow({
 }): ReactNode {
   const isRead = item.readAt !== null;
   const [explaining, setExplaining] = useState(false);
+  const dense = view === 'titles';
+
+  const titleLink = (
+    <a
+      href={item.url}
+      target="_blank"
+      rel="noreferrer noopener"
+      className={isRead ? 'text-visited' : 'text-primary hover:text-accent'}
+      // Opening an item marks it read: that is what "read" means here.
+      onClick={() => {
+        if (!isRead) onToggleRead(item);
+      }}
+    >
+      {item.title}
+    </a>
+  );
+
+  const scoreButton = (
+    /* The score badge opens the explanation; that is how a rule set gets debugged. */
+    <button
+      type="button"
+      aria-label={t('breakdown.open')}
+      onClick={() => setExplaining((open) => !open)}
+      className="border-subtle text-muted hover:text-primary rounded border px-1 tabular-nums"
+    >
+      {item.score.toFixed(2)}
+    </button>
+  );
 
   return (
     <li
@@ -56,47 +98,78 @@ function ItemRow({
       onFocus={() => onFocus(index)}
       aria-current={focused ? 'true' : undefined}
       className={[
-        'border-subtle border-b px-2 py-2.5 last:border-b-0',
+        'border-subtle border-b last:border-b-0',
+        dense ? 'px-2 py-1' : 'px-2 py-2.5',
         focused ? 'bg-accent-subtle' : 'hover:bg-hovered',
       ].join(' ')}
     >
-      <h3 className="text-base leading-snug font-medium">
-        <a
-          href={item.url}
-          target="_blank"
-          rel="noreferrer noopener"
-          className={isRead ? 'text-visited' : 'text-primary hover:text-accent'}
-          // Opening an item marks it read: that is what "read" means here.
-          onClick={() => {
-            if (!isRead) onToggleRead(item);
-          }}
-        >
-          {item.title}
-        </a>
-      </h3>
+      {dense ? (
+        <div className="flex items-baseline gap-2">
+          <h3 className="mr-auto truncate text-sm leading-snug">{titleLink}</h3>
+          {item.starred && <span aria-label={t('reader.item.starred')}>★</span>}
+          <span className="text-muted shrink-0 text-xs">{item.source.title}</span>
+          <span className="shrink-0 text-xs">{scoreButton}</span>
+        </div>
+      ) : (
+        <div className={view === 'cards' ? 'flex gap-3' : undefined}>
+          {view === 'cards' && item.imageUrl !== null && (
+            // Fixed box, so the list does not reflow as thumbnails arrive.
+            <div className="h-20 w-28 shrink-0 sm:h-24 sm:w-36">
+              <Thumbnail src={item.imageUrl} />
+            </div>
+          )}
 
-      <p className="text-secondary mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
-        <span>{item.source.title}</span>
-        <time dateTime={item.publishedAt} title={absoluteTime(item.publishedAt)}>
-          {relativeTime(item.publishedAt)}
-        </time>
-        {item.engagementScore !== null && (
-          <span>{t('reader.item.points', { count: formatNumber(item.engagementScore) })}</span>
-        )}
-        {/* The score badge opens the explanation; that is how a rule set gets debugged. */}
-        <button
-          type="button"
-          aria-label={t('breakdown.open')}
-          onClick={() => setExplaining((open) => !open)}
-          className="border-subtle text-muted hover:text-primary rounded border px-1 tabular-nums"
-        >
-          {item.score.toFixed(2)}
-        </button>
-        {item.starred && <span aria-label={t('reader.item.starred')}>★</span>}
-        {item.source.tags.map((tag) => (
-          <TagChip key={tag.id} tag={tag} />
-        ))}
-      </p>
+          <div className="min-w-0 flex-1">
+            <h3 className="text-base leading-snug font-medium">{titleLink}</h3>
+
+            <p className="text-secondary mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+              <span>{item.source.title}</span>
+              <time dateTime={item.publishedAt} title={absoluteTime(item.publishedAt)}>
+                {relativeTime(item.publishedAt)}
+              </time>
+              {item.engagementScore !== null && (
+                <span>
+                  {t('reader.item.points', { count: formatNumber(item.engagementScore) })}
+                </span>
+              )}
+              {scoreButton}
+              {item.starred && <span aria-label={t('reader.item.starred')}>★</span>}
+              {item.source.tags.map((tag) => (
+                <TagChip key={tag.id} tag={tag} />
+              ))}
+            </p>
+
+            {item.summary !== null && (
+              <p
+                className={`text-secondary mt-1.5 text-sm ${
+                  // Two lines beside a thumbnail, three without: any more and the
+                  // card grows taller than its own image.
+                  view === 'cards' ? 'line-clamp-2' : 'line-clamp-3'
+                }`}
+              >
+                {item.summary}
+              </p>
+            )}
+
+            <p className="mt-2 flex gap-2 text-xs">
+              <button
+                type="button"
+                onClick={() => onToggleRead(item)}
+                className="border-subtle text-secondary hover:bg-hovered rounded border px-2 py-0.5"
+              >
+                {isRead ? t('reader.item.markUnread') : t('reader.item.markRead')}
+              </button>
+              <button
+                type="button"
+                onClick={() => onToggleStar(item)}
+                className="border-subtle text-secondary hover:bg-hovered rounded border px-2 py-0.5"
+              >
+                {item.starred ? t('reader.item.unstar') : t('reader.item.star')}
+              </button>
+            </p>
+          </div>
+        </div>
+      )}
 
       {explaining && (
         <div className="bg-surface border-subtle mt-2 rounded border p-3 text-sm">
@@ -107,27 +180,6 @@ function ItemRow({
           />
         </div>
       )}
-
-      {item.summary !== null && (
-        <p className="text-secondary mt-1.5 line-clamp-3 text-sm">{item.summary}</p>
-      )}
-
-      <p className="mt-2 flex gap-2 text-xs">
-        <button
-          type="button"
-          onClick={() => onToggleRead(item)}
-          className="border-subtle text-secondary hover:bg-hovered rounded border px-2 py-0.5"
-        >
-          {isRead ? t('reader.item.markUnread') : t('reader.item.markRead')}
-        </button>
-        <button
-          type="button"
-          onClick={() => onToggleStar(item)}
-          className="border-subtle text-secondary hover:bg-hovered rounded border px-2 py-0.5"
-        >
-          {item.starred ? t('reader.item.unstar') : t('reader.item.star')}
-        </button>
-      </p>
     </li>
   );
 }
@@ -150,6 +202,13 @@ export function Reader(): ReactNode {
 
   const tags = useTags();
   const sources = useSources();
+
+  // The layout is a durable preference, so it lives in settings beside the theme
+  // rather than in component state that a reload would throw away. Until the
+  // fetch lands, render the mode the reader has always had.
+  const settings = useSettings();
+  const updateSettings = useUpdateSettings();
+  const view: ReaderView = settings.data?.readerView ?? 'list';
 
   const filters = useMemo<ItemListFilters>(
     () => ({
@@ -277,11 +336,37 @@ export function Reader(): ReactNode {
           </span>
         )}
 
+        {/* A segmented control, not a select: three options that are worth
+            seeing at a glance, and `aria-pressed` says which one is on. */}
+        <div
+          role="group"
+          aria-label={t('reader.view.label')}
+          className="border-subtle ml-auto flex overflow-hidden rounded border"
+        >
+          {READER_VIEWS.map((option) => (
+            <button
+              key={option}
+              type="button"
+              aria-pressed={view === option}
+              disabled={updateSettings.isPending}
+              onClick={() => updateSettings.mutate({ readerView: option })}
+              className={[
+                'px-2 py-1 text-xs transition-colors disabled:opacity-60',
+                view === option
+                  ? 'bg-accent text-accent-fg'
+                  : 'text-secondary hover:bg-hovered hover:text-primary',
+              ].join(' ')}
+            >
+              {t(`reader.view.${option}`)}
+            </button>
+          ))}
+        </div>
+
         <button
           type="button"
           disabled={markAllRead.isPending || rows.length === 0}
           onClick={() => markAllRead.mutate(filters)}
-          className="border-subtle text-secondary hover:bg-hovered ml-auto rounded border px-2 py-1 disabled:opacity-50"
+          className="border-subtle text-secondary hover:bg-hovered rounded border px-2 py-1 disabled:opacity-50"
         >
           {t('reader.markAllRead')}
         </button>
@@ -314,6 +399,7 @@ export function Reader(): ReactNode {
             key={item.id}
             item={item}
             index={index}
+            view={view}
             focused={index === focusedIndex}
             t={t}
             onFocus={setFocusedIndex}

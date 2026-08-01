@@ -20,6 +20,8 @@ export const QUEUE = {
   scoreRefresh: 'score:refresh',
   /** Push whatever alerts are pending, as one grouped notification. */
   deliverAlerts: 'deliver:alerts',
+  /** Fill in preview images for items whose feed carried none. */
+  enrichImages: 'enrich:images',
   /** Nightly: delete unstarred items past the retention window. */
   retentionItems: 'retention:items',
   /** Nightly: drop the stored upstream payload once it stops being useful. */
@@ -66,6 +68,22 @@ export const SCORE_BATCH_SIZE = 10;
 export const DELIVER_DEBOUNCE_SECONDS = 10;
 
 export const DELIVER_TIMEOUT_SECONDS = 120;
+
+/**
+ * A batch is 25 articles at 3 at a time, each capped at a 10s timeout. The
+ * worst realistic case is well under this; it is headroom for a batch where
+ * every host is slow.
+ */
+export const ENRICH_TIMEOUT_SECONDS = 180;
+
+/**
+ * How long the next backfill batch waits when rows remain.
+ *
+ * Not zero: the job re-enqueues itself, and a tight loop would let a large
+ * backlog monopolise the worker and hammer a handful of hosts. This paces a
+ * drain at roughly 25 items per interval.
+ */
+export const ENRICH_NEXT_BATCH_SECONDS = 15;
 
 /**
  * Retention runs against the whole table, and a vacuum on a large one is not
@@ -130,6 +148,17 @@ export const QUEUE_DEFINITIONS: PgBoss.Queue[] = [
     policy: 'short',
     retryLimit: 0,
     expireInSeconds: RESCORE_TIMEOUT_SECONDS,
+  },
+  {
+    name: QUEUE.enrichImages,
+    // `short`: one queued backfill at a time. Several polls landing together must
+    // collapse into the one job already waiting, and the job re-enqueues itself
+    // while rows remain, so a backlog drains without a queue of duplicates.
+    policy: 'short',
+    // No retry. A failed batch left every row unstamped, so the next run picks up
+    // exactly the same items -- a queue-level retry would only do it sooner.
+    retryLimit: 0,
+    expireInSeconds: ENRICH_TIMEOUT_SECONDS,
   },
   {
     name: QUEUE.retentionItems,

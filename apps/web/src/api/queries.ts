@@ -25,6 +25,7 @@ import type {
   RuleTestResult,
   Settings,
   Source,
+  ReaderView,
   SourceKind,
   Tag,
   TagColor,
@@ -640,6 +641,7 @@ export function useSettings(): UseQueryResult<Settings> {
 export interface SettingsPatchBody {
   themeMode?: ThemeMode;
   themePreset?: ThemePreset;
+  readerView?: ReaderView;
   accentHue?: number;
   accentChroma?: number;
   redditClientId?: string | null;

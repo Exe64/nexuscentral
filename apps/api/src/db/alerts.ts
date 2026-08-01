@@ -27,6 +27,7 @@ interface AlertRow {
   fetched_at: Date;
   engagement_score: number | null;
   engagement_comments: number | null;
+  image_url: string | null;
   score: number;
   matched_rules: number[];
   read_at: Date | null;
@@ -48,6 +49,7 @@ function toAlert(row: AlertRow, tags: Tag[]): Alert {
     fetchedAt: row.fetched_at.toISOString(),
     engagementScore: row.engagement_score,
     engagementComments: row.engagement_comments,
+    imageUrl: row.image_url,
     score: row.score,
     matchedRules: row.matched_rules,
     readAt: row.read_at?.toISOString() ?? null,
@@ -94,7 +96,7 @@ export async function listAlerts(options: ListAlertsOptions = {}): Promise<Alert
     `SELECT a.id, a.created_at, a.delivered_at, a.delivery_error, a.acknowledged_at,
             r.id AS rule_id, r.name AS rule_name,
             i.id AS item_id, i.url, i.title, i.summary, i.author, i.published_at, i.fetched_at,
-            i.engagement_score, i.engagement_comments, i.score, i.matched_rules,
+            i.engagement_score, i.engagement_comments, i.image_url, i.score, i.matched_rules,
             i.read_at, i.starred,
             s.id AS source_id, s.title AS source_title, s.kind AS source_kind,
             s.icon_url AS source_icon_url

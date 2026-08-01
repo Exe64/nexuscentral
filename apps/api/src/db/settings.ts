@@ -13,6 +13,7 @@
  */
 
 import type {
+  ReaderView,
   SettingOrigin,
   Settings,
   ThemeMode,
@@ -25,6 +26,7 @@ import { env } from '../config/env.js';
 interface SettingsRow {
   theme_mode: string;
   theme_preset: string;
+  reader_view: string;
   accent_hue: number;
   accent_chroma: number;
   items_retention_days: number;
@@ -37,7 +39,7 @@ interface SettingsRow {
 }
 
 const COLUMNS = `
-  theme_mode, theme_preset, accent_hue, accent_chroma, items_retention_days,
+  theme_mode, theme_preset, reader_view, accent_hue, accent_chroma, items_retention_days,
   alert_webhook_url, alert_webhook_kind,
   reddit_client_id, reddit_client_secret, nitter_base_urls, updated_at
 `;
@@ -46,6 +48,7 @@ const COLUMNS = `
 export interface RawSettings {
   themeMode: ThemeMode;
   themePreset: ThemePreset;
+  readerView: ReaderView;
   accentHue: number;
   accentChroma: number;
   itemsRetentionDays: number;
@@ -61,6 +64,7 @@ function toRaw(row: SettingsRow): RawSettings {
   return {
     themeMode: row.theme_mode as ThemeMode,
     themePreset: row.theme_preset as ThemePreset,
+    readerView: row.reader_view as ReaderView,
     accentHue: row.accent_hue,
     accentChroma: row.accent_chroma,
     itemsRetentionDays: row.items_retention_days,
@@ -95,6 +99,7 @@ export async function getRawSettings(): Promise<RawSettings> {
 export interface SettingsPatch {
   themeMode?: ThemeMode;
   themePreset?: ThemePreset;
+  readerView?: ReaderView;
   accentHue?: number;
   accentChroma?: number;
   itemsRetentionDays?: number;
@@ -116,6 +121,7 @@ export async function updateSettings(patch: SettingsPatch): Promise<RawSettings>
 
   if (patch.themeMode !== undefined) set('theme_mode', patch.themeMode);
   if (patch.themePreset !== undefined) set('theme_preset', patch.themePreset);
+  if (patch.readerView !== undefined) set('reader_view', patch.readerView);
   if (patch.accentHue !== undefined) set('accent_hue', patch.accentHue);
   if (patch.accentChroma !== undefined) set('accent_chroma', patch.accentChroma);
   if (patch.itemsRetentionDays !== undefined) set('items_retention_days', patch.itemsRetentionDays);
@@ -207,6 +213,7 @@ export function toPublicSettings(settings: RawSettings): Settings {
   return {
     themeMode: settings.themeMode,
     themePreset: settings.themePreset,
+    readerView: settings.readerView,
     accentHue: settings.accentHue,
     accentChroma: settings.accentChroma,
     itemsRetentionDays: settings.itemsRetentionDays,

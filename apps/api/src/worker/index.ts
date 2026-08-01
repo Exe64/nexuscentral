@@ -13,9 +13,11 @@ import { pollSource } from '../ingest/runner.js';
 import { refreshScores, rescoreRecent, scoreItems } from '../scoring/rescore.js';
 import { deliverPendingAlerts, MIN_INTERVAL_MS } from '../alerts/deliver.js';
 import { purgeOldItems, purgeRawPayloads, vacuumItems } from '../retention/jobs.js';
+import { enrichPendingImages } from '../images/jobs.js';
 import {
   DELIVER_DEBOUNCE_SECONDS,
   DELIVER_TIMEOUT_SECONDS,
+  ENRICH_NEXT_BATCH_SECONDS,
   POLL_CONCURRENCY,
   POLL_JITTER_SECONDS,
   POLL_TIMEOUT_SECONDS,
@@ -176,6 +178,23 @@ async function handlePollBatch(jobs: PgBoss.Job<PollSourceData>[]): Promise<void
   // Scoring is its own job so a slow rule set cannot eat into the poll timeout.
   const insertedIds = outcomes.flatMap((outcome) => outcome.insertedIds);
   await enqueueScoreItems(insertedIds);
+
+  // Same reasoning, more so: fetching articles for their og:image is the slowest
+  // thing in the system and has no business inside a poll's 30s ceiling.
+  if (insertedIds.length > 0) await enqueueEnrichImages();
+}
+
+/**
+ * `enrich:images` -- ask for a backfill pass.
+ *
+ * The `short` policy makes this idempotent: a burst of polls all calling it
+ * collapses into the one job already queued.
+ */
+async function enqueueEnrichImages(delaySeconds = 0): Promise<void> {
+  const instance = await readyBoss();
+  if (instance === null) return;
+
+  await instance.send(QUEUE.enrichImages, {}, { startAfter: delaySeconds });
 }
 
 /**
@@ -250,6 +269,18 @@ async function handleDeliverAlerts(): Promise<void> {
   log.info({ sent: outcome.sent }, 'Alert notification sent');
 }
 
+/**
+ * `enrich:images` -- one batch of og:image lookups, then ask for the next.
+ *
+ * The re-enqueue is what drains a backlog: the first run after this ships has
+ * every existing item to get through, and a single unbounded job would hold the
+ * worker for hours and hammer a handful of hosts.
+ */
+async function handleEnrichImages(): Promise<void> {
+  const result = await enrichPendingImages();
+  if (result.more) await enqueueEnrichImages(ENRICH_NEXT_BATCH_SECONDS);
+}
+
 /** `retention:items` -- nightly purge of everything past the window. */
 async function handleRetentionItems(): Promise<void> {
   await purgeOldItems();
@@ -305,6 +336,7 @@ async function start(): Promise<PgBoss> {
   await instance.work(QUEUE.scoreItems, { batchSize: SCORE_BATCH_SIZE }, handleScoreItems);
   await instance.work(QUEUE.rescoreAll, { batchSize: 1 }, handleRescoreAll);
   await instance.work(QUEUE.scoreRefresh, { batchSize: 1 }, handleScoreRefresh);
+  await instance.work(QUEUE.enrichImages, { batchSize: 1 }, handleEnrichImages);
   await instance.work(QUEUE.retentionItems, { batchSize: 1 }, handleRetentionItems);
   await instance.work(QUEUE.retentionRaw, { batchSize: 1 }, handleRetentionRaw);
   await instance.work(QUEUE.vacuumAnalyze, { batchSize: 1 }, handleVacuum);
@@ -318,6 +350,10 @@ async function start(): Promise<PgBoss> {
 
   // Nightly, ten minutes apart so the raw purge is not fighting the delete for
   // locks on the same table (01-SPEC-data-model.md 3).
+  // Hourly, because polls are not a reliable trigger on their own: an instance
+  // whose sources are all answering 304 inserts nothing, and a database that
+  // already had items when this shipped would never start its backfill.
+  await instance.schedule(QUEUE.enrichImages, '25 * * * *');
   await instance.schedule(QUEUE.retentionItems, '0 3 * * *');
   await instance.schedule(QUEUE.retentionRaw, '10 3 * * *');
   // Weekly, after a night of deletes rather than before one.

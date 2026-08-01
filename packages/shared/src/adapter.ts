@@ -15,6 +15,11 @@ export interface NormalizedItem {
   publishedAt: Date;
   engagementScore?: number;
   engagementComments?: number;
+  /**
+   * Preview thumbnail. Absent when the source carries none -- the og:image job
+   * fills those in later, so an adapter must never invent one.
+   */
+  imageUrl?: string;
   /** Adapter-supplied stable id, preferred over the URL for deduplication. */
   guid?: string;
   raw: unknown;

@@ -43,6 +43,8 @@ interface RedditPost {
   is_self?: boolean;
   subreddit?: string;
   over_18?: boolean;
+  thumbnail?: string;
+  preview?: { images?: { source?: { url?: string } }[] };
 }
 
 interface RedditListing {
@@ -230,6 +232,8 @@ function toNormalizedItem(post: RedditPost): NormalizedItem | null {
       ? new Date(createdUtc * 1000)
       : new Date();
 
+  const imageUrl = previewImage(post);
+
   return {
     url,
     title: title === '' ? url : title,
@@ -238,9 +242,30 @@ function toNormalizedItem(post: RedditPost): NormalizedItem | null {
     publishedAt,
     ...(typeof post.ups === 'number' ? { engagementScore: post.ups } : {}),
     ...(typeof post.num_comments === 'number' ? { engagementComments: post.num_comments } : {}),
+    ...(imageUrl === undefined ? {} : { imageUrl }),
     ...(post.name === undefined || post.name === '' ? {} : { guid: post.name }),
     raw: post,
   };
+}
+
+/**
+ * `thumbnail` is a string field that is usually not a URL.
+ *
+ * Reddit puts sentinels in it -- `self`, `default`, `nsfw`, `spoiler`, `image`,
+ * the empty string -- and a naive read renders them as broken images. The real
+ * preview lives in `preview.images[].source.url`, HTML-escaped, so `&amp;` has
+ * to come back out or the signed URL fails its own signature check.
+ */
+function previewImage(post: RedditPost): string | undefined {
+  const preview = post.preview?.images?.[0]?.source?.url;
+  if (preview !== undefined && preview !== '') {
+    return preview.replace(/&amp;/g, '&');
+  }
+
+  const thumbnail = post.thumbnail;
+  if (thumbnail === undefined) return undefined;
+  // Only a real URL survives; every sentinel fails this.
+  return /^https?:\/\//i.test(thumbnail) ? thumbnail : undefined;
 }
 
 /**

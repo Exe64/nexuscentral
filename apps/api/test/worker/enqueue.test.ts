@@ -91,6 +91,7 @@ const EXPECTED_QUEUES = [
   'score:items',
   'rescore:all',
   'score:refresh',
+  'enrich:images',
   'retention:items',
   'retention:raw',
   'vacuum:analyze',
@@ -110,6 +111,9 @@ describe('startWorker', () => {
     expect(state.schedules).toEqual([
       'poll:tick',
       'score:refresh',
+      // Hourly: polls alone are not a reliable trigger, because an instance
+      // whose sources all answer 304 inserts nothing and would never backfill.
+      'enrich:images',
       // Nightly, ten minutes apart so the raw purge is not fighting the delete
       // for locks; the vacuum runs weekly, after a night of deletes.
       'retention:items',

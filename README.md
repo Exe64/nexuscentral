@@ -245,6 +245,49 @@ definition exactly or PostgreSQL silently ignores it, and at 200k rows that is t
 between 9 ms and a sequential scan. Nothing about the API's behaviour would change, which is
 what makes it worth a test.
 
+### Layouts and preview images
+
+The reader has three layouts, chosen from the toolbar and stored in `settings` beside the
+theme — a preference that survives a reload, not view state.
+
+| Layout     | What it shows                                                 |
+| ---------- | ------------------------------------------------------------- |
+| **List**   | Title, meta and a three-line summary. The default.            |
+| **Cards**  | Adds the preview thumbnail, summary clamped to two lines.     |
+| **Titles** | One line each. No summary, no buttons — density is the point. |
+
+Images come from the feed first, and the coverage that gets you was measured rather than
+assumed:
+
+| Feed              | Items with an image | From                               |
+| ----------------- | ------------------- | ---------------------------------- |
+| Ars Technica      | 20/20               | `media:content`, `media:thumbnail` |
+| The Verge         | 10/10               | first `<img>` in the body          |
+| Reddit `/new.rss` | 8/25                | `media:thumbnail`, link posts only |
+| GitHub blog       | 3/10                | first `<img>` in the body          |
+| Hacker News       | 0/30                | nothing — the feed has no body     |
+
+No single channel is enough, which is why the HTML fallback is not optional: it is the only
+thing that covers The Verge. Tiny images and known analytics hosts are skipped, or a feed
+that opens its body with a tracking pixel would give a wall of 1×1 previews.
+
+The gaps are filled by **`enrich:images`**, a queued job that reads the article's `og:image`.
+It runs outside the poll — a poll has a 30s ceiling and no business spending it on twenty
+article fetches — in batches of 25, three at a time, re-enqueueing itself while rows remain
+so an existing database backfills gradually instead of firing thousands of requests at once.
+Every hop goes through the same SSRF guard as the custom_api fetch, on a pinned connection,
+because this fetches URLs that third parties chose. It stops reading at `</head>`: the tag is
+there, and articles run to megabytes.
+
+`image_checked_at` records that an item was _tried_, which is not the same as an image having
+been found. Most articles without one will never have one, and without that column the job
+would re-fetch every one of them forever.
+
+Thumbnails are hotlinked, with `referrerpolicy="no-referrer"` — several CDNs, `preview.redd.it`
+among them, refuse a request naming another site, and sending one leaks the reading history.
+They are lazy, sit in a fixed box so the list does not reflow as they arrive, and remove
+themselves on error rather than showing a broken-image icon.
+
 ### Keyboard
 
 `j` / `k` move, `o` opens, `m` toggles read, `s` stars, `r` refreshes, `/` focuses search,
