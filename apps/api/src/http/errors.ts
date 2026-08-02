@@ -79,18 +79,27 @@ export function notFoundHandler(req: Request, _res: Response, next: NextFunction
  * Terminal error middleware. Express 5 forwards rejected async handlers here,
  * so route code can throw freely.
  */
-export function errorHandler(err: unknown, _req: Request, res: Response, next: NextFunction): void {
+export function errorHandler(err: unknown, req: Request, res: Response, next: NextFunction): void {
   if (res.headersSent) {
     next(err);
     return;
   }
 
   if (err instanceof ZodError) {
+    const details = zodDetails(err);
+
+    // Logged, unlike other 4xx. This API has exactly one client, so a body it
+    // rejects means that client sent something wrong -- our bug, not a stranger's
+    // bad request. It went unlogged, and the response said only "Request
+    // validation failed", so a rejected layout save was invisible from the
+    // server and from the browser at the same time.
+    logger.warn({ method: req.method, path: req.path, details }, 'Request validation failed');
+
     res.status(400).json({
       error: {
         code: 'VALIDATION_FAILED',
         message: 'Request validation failed',
-        details: zodDetails(err),
+        details,
       },
     });
     return;

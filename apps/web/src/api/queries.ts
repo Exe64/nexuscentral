@@ -543,13 +543,30 @@ export function useSaveLayout(): UseMutationResult<
   { dashboardId: number; layouts: LayoutEntry[] }
 > {
   return useMutation({
-    mutationFn: async ({ dashboardId, layouts }) =>
-      (
+    mutationFn: async ({ dashboardId, layouts }) => {
+      const result = (
         await apiFetch<Envelope<{ updated: number }>>(`/dashboards/${dashboardId}/layout`, {
           method: 'PATCH',
           body: { layouts },
         })
-      ).data,
+      ).data;
+
+      // The endpoint reports how many rows it wrote, and that number was being
+      // thrown away. It updates `WHERE id = ? AND dashboard_id = ?`, so an id
+      // that does not belong to this dashboard matches nothing and answers 200
+      // with `updated: 0` -- a save that did not happen, reported as a success.
+      // That is indistinguishable from "positions are not kept" and leaves
+      // nothing to look at.
+      if (result.updated < layouts.length) {
+        throw new Error(
+          `The server stored ${result.updated} of ${layouts.length} positions. ` +
+            `Widget ids ${[...new Set(layouts.map((entry) => entry.widgetId))].join(', ')} ` +
+            `on dashboard ${dashboardId}.`,
+        );
+      }
+
+      return result;
+    },
   });
 }
 

@@ -138,6 +138,64 @@ describe('PATCH /api/widgets/:id', () => {
   });
 });
 
+describe('the exact batch the web client sends', () => {
+  /**
+   * Three widgets across three breakpoints, the shape `layoutEntries` produces.
+   *
+   * Reported repeatedly as positions not being kept, and every narrower test
+   * passed. This is the whole body, so a failure that only appears at batch size
+   * -- the array cap, a transaction that stops early, a count that does not add
+   * up -- has somewhere to show.
+   */
+  it('stores every position and says how many it wrote', async () => {
+    const dashboardId = await makeDashboard();
+    const ids = [
+      await makeWidget(dashboardId),
+      await makeWidget(dashboardId),
+      await makeWidget(dashboardId),
+    ];
+
+    const layouts = ids.flatMap((widgetId, index) => [
+      { widgetId, breakpoint: 'lg', x: index * 4, y: 0, w: 4, h: 8 },
+      { widgetId, breakpoint: 'md', x: index * 3, y: 2, w: 3, h: 7 },
+      { widgetId, breakpoint: 'sm', x: 0, y: index * 8, w: 6, h: 6 },
+    ]);
+
+    const patch = await agent.patch(`/api/dashboards/${dashboardId}/layout`).send({ layouts });
+
+    expect(patch.status).toBe(200);
+    // One row per entry. The client now treats a shortfall as a failure, so this
+    // number is load-bearing rather than decorative.
+    expect(patch.body.data.updated).toBe(layouts.length);
+
+    const read = await agent.get(`/api/dashboards/${dashboardId}`);
+    const widgets = read.body.data.widgets as { id: number; layout: Record<string, unknown> }[];
+
+    for (const [index, widgetId] of ids.entries()) {
+      const widget = widgets.find((each) => each.id === widgetId);
+      expect(widget?.layout['lg']).toEqual({ x: index * 4, y: 0, w: 4, h: 8 });
+      expect(widget?.layout['md']).toEqual({ x: index * 3, y: 2, w: 3, h: 7 });
+      expect(widget?.layout['sm']).toEqual({ x: 0, y: index * 8, w: 6, h: 6 });
+    }
+  });
+
+  it('reports a shortfall when an id belongs to another dashboard', async () => {
+    // What `updated: 0` means, and why the client now treats it as an error: the
+    // update is scoped by dashboard, so a stale id answers 200 having written
+    // nothing at all.
+    const first = await makeDashboard('Home');
+    const second = await makeDashboard('Other');
+    const strayWidget = await makeWidget(second);
+
+    const patch = await agent
+      .patch(`/api/dashboards/${first}/layout`)
+      .send({ layouts: [{ widgetId: strayWidget, breakpoint: 'lg', x: 0, y: 0, w: 4, h: 4 }] });
+
+    expect(patch.status).toBe(200);
+    expect(patch.body.data.updated).toBe(0);
+  });
+});
+
 describe('PATCH /api/dashboards/:id/layout', () => {
   it('merges per breakpoint so a drag on lg does not discard sm', async () => {
     const dashboardId = await makeDashboard();
