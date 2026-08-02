@@ -98,24 +98,55 @@ export function toLayouts(widgets: readonly Widget[]): Layouts {
 }
 
 /**
+ * The bounds `PATCH /api/dashboards/:id/layout` enforces.
+ *
+ * Duplicated from the API's zod schema on purpose. The schema validates an
+ * *array*, so a single out-of-range entry rejects the whole batch -- one widget
+ * with an impossible height and nothing about the dashboard is saved, silently.
+ * Checking here means the other widgets still get stored.
+ */
+const BOUNDS = {
+  x: { min: 0, max: 24 },
+  y: { min: 0, max: 500 },
+  w: { min: 1, max: 24 },
+  h: { min: 1, max: 100 },
+} as const;
+
+/** Whether the API would accept this entry, by the same rules it applies. */
+export function isStorable(entry: LayoutEntry): boolean {
+  if (!Number.isInteger(entry.widgetId) || entry.widgetId < 1) return false;
+  for (const field of ['x', 'y', 'w', 'h'] as const) {
+    const value = entry[field];
+    const { min, max } = BOUNDS[field];
+    if (!Number.isInteger(value) || value < min || value > max) return false;
+  }
+  return true;
+}
+
+/**
  * Flatten react-grid-layout's per-breakpoint layouts into what the API stores.
  *
  * `xs` is skipped: it is static and derived from the `lg` order, so persisting it
  * would store a position nobody chose and no drag can change.
+ *
+ * Anything the API would refuse is dropped rather than sent. Losing one
+ * breakpoint of one widget is a bad outcome; losing the whole dashboard's layout
+ * because of it is a worse one, and that is what a rejected batch costs.
  */
 export function layoutEntries(layouts: Layouts): LayoutEntry[] {
   const entries: LayoutEntry[] = [];
   for (const breakpoint of BREAKPOINTS) {
     if (breakpoint === 'xs') continue;
     for (const item of layouts[breakpoint] ?? []) {
-      entries.push({
+      const entry: LayoutEntry = {
         widgetId: Number(item.i),
         breakpoint: breakpoint as Breakpoint,
         x: item.x,
         y: item.y,
         w: item.w,
         h: item.h,
-      });
+      };
+      if (isStorable(entry)) entries.push(entry);
     }
   }
   return entries;

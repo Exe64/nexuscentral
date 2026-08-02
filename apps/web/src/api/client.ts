@@ -13,12 +13,40 @@ export class ApiRequestError extends Error {
   readonly details: unknown;
 
   constructor(code: ErrorCode | 'NETWORK', message: string, status: number, details?: unknown) {
-    super(message);
+    super(withFields(message, details));
     this.name = 'ApiRequestError';
     this.code = code;
     this.status = status;
     this.details = details;
   }
+}
+
+/**
+ * Fold a validation failure's field list into the message.
+ *
+ * The API already reports which field failed and why -- `zodDetails` flattens a
+ * ZodError to `{ 'layouts.3.h': ['Number must be...'] }` -- but nothing rendered
+ * it, so every surface showed the bare "Request validation failed". That is a
+ * dead end for the user and for whoever they report it to: it names neither the
+ * field nor the value.
+ *
+ * Capped at three fields. A body that fails in twenty places has one underlying
+ * cause, and the first few name it.
+ */
+function withFields(message: string, details: unknown): string {
+  if (typeof details !== 'object' || details === null || Array.isArray(details)) return message;
+
+  const parts: string[] = [];
+  for (const [field, problems] of Object.entries(details as Record<string, unknown>)) {
+    if (parts.length === 3) {
+      parts.push('…');
+      break;
+    }
+    const first = Array.isArray(problems) ? problems[0] : problems;
+    if (typeof first === 'string') parts.push(`${field}: ${first}`);
+  }
+
+  return parts.length === 0 ? message : `${message} (${parts.join('; ')})`;
 }
 
 function isApiError(body: unknown): body is ApiError {
