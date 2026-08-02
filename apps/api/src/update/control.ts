@@ -127,8 +127,14 @@ export async function updateRun(): Promise<UpdateRun> {
     fromSha: parsed.fromSha,
     toSha: parsed.toSha,
     message: parsed.message,
-    // Only when it matters. A successful deploy's log is noise.
-    logTail: parsed.state === 'failed' ? await readLogTail(p.log) : null,
+    // While it runs and when it failed. Running is the case someone is actually
+    // watching: deploy.sh takes minutes, and "Deploying..." with nothing under it
+    // is indistinguishable from a deploy that hung. The log names the step.
+    //
+    // Withheld on success, where three minutes of build output says nothing that
+    // "Update complete" did not.
+    logTail:
+      parsed.state === 'failed' || parsed.state === 'running' ? await readLogTail(p.log) : null,
   };
 }
 

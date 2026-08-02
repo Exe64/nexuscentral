@@ -384,7 +384,7 @@
   "settings.update.run.start": "Update now",
   "settings.update.run.requested": "Update requested. The host agent picks it up within a minute.",
   "settings.update.run.unclaimed": "The request has not been picked up. Check that the nexuscentral-update timer is installed and running on the host.",
-  "settings.update.run.running": "Deploying. The application restarts partway through, so this page may fail to load for a minute.",
+  "settings.update.run.running": "Deploying. The application restarts partway through, so this page may fail to load for a minute — that is expected, and the deploy carries on without it.",
   "settings.update.run.succeeded": "Update complete.",
   "settings.update.run.failed": "The update failed. deploy.sh rolls back to the previous commit when a migration or the health check fails.",
   "settings.update.run.deployed": "Deployed {from} → {to}.",
@@ -396,5 +396,6 @@
   "topbar.update.unclaimed": "Update not picked up",
   "topbar.update.failed": "Update failed",
   "settings.update.newestOnMain": "Newest on main",
-  "settings.update.run.notConfigured": "In-app updating is not set up on this host, so there is nothing here that can run the deploy. It needs the nexuscentral-update systemd timer installed and UPDATE_CONTROL_DIR set — see README, In-app updates. Until then, deploy from a shell with ./deploy.sh."
+  "settings.update.run.notConfigured": "In-app updating is not set up on this host, so there is nothing here that can run the deploy. It needs the nexuscentral-update systemd timer installed and UPDATE_CONTROL_DIR set — see README, In-app updates. Until then, deploy from a shell with ./deploy.sh.",
+  "settings.update.run.startedAt": "Started {when}."
 }

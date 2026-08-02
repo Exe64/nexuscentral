@@ -152,6 +152,24 @@ describe('reading what the agent did', () => {
     expect((await updateRun()).logTail).toContain('migration failed');
   });
 
+  it('includes the log while the deploy is still running', async () => {
+    // The case someone is actually watching. deploy.sh takes minutes, and
+    // "Deploying..." with nothing under it is indistinguishable from a deploy
+    // that hung -- which was the question that prompted this.
+    await writeFile(join(dir, 'update.log'), '=== building api ===\n', 'utf8');
+    await writeState({
+      state: 'running',
+      startedAt: '2026-07-31T10:00:00Z',
+      finishedAt: null,
+      fromSha: 'abc1234',
+      toSha: null,
+      exitCode: null,
+      message: null,
+    });
+
+    expect((await updateRun()).logTail).toContain('building api');
+  });
+
   it('withholds the log on success, where it is only noise', async () => {
     await writeFile(join(dir, 'update.log'), 'three minutes of build output\n', 'utf8');
     await writeState({

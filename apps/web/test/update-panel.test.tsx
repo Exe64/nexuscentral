@@ -250,6 +250,23 @@ describe('running the update', () => {
     expect(await screen.findByText(/this page may fail to load/)).toBeTruthy();
   });
 
+  it('shows how far along a running deploy is', async () => {
+    // Asked directly: "how do I know where the update process is at?" It took
+    // minutes and the panel said only "Deploying", which reads the same at
+    // thirty seconds and at half an hour.
+    stub(
+      ready({
+        state: 'running',
+        startedAt: new Date(Date.now() - 90_000).toISOString(),
+        logTail: '=== building api ===\nStep 4/12 : COPY packages/shared',
+      }),
+    );
+    renderPage(<UpdatePanel />);
+
+    expect(await screen.findByText(/^Started /)).toBeTruthy();
+    expect(screen.getByText(/Step 4\/12/)).toBeTruthy();
+  });
+
   it('reports a finished update with the commits it moved between', async () => {
     stub(
       status({

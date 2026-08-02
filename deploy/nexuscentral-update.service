@@ -11,7 +11,11 @@ Type=oneshot
 # Root: it drives docker and writes the application's working tree.
 User=root
 WorkingDirectory=/opt/apps/nexuscentral
-ExecStart=/opt/apps/nexuscentral/deploy/update-agent.sh
+# Invoked through bash rather than executed directly. The script is executable in
+# git, but a unit that depends on a mode bit surviving a clone fails as
+# 203/EXEC once a minute and never says why -- which is exactly what happened
+# the first time this shipped.
+ExecStart=/bin/bash /opt/apps/nexuscentral/deploy/update-agent.sh
 # A build plus a migration plus a health check. Generous, but bounded: a hung
 # deploy must not hold the lock for ever.
 TimeoutStartSec=1800

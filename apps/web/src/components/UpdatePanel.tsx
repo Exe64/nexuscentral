@@ -7,7 +7,7 @@
  * the one answer that is actively misleading.
  */
 
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useLocation } from 'react-router-dom';
 import type { UpdateRun, UpdateStatus } from '@nexuscentral/shared';
 import { useCheckForUpdate, useRunUpdate, useUpdateStatus } from '../api/queries.ts';
@@ -50,6 +50,16 @@ function RunReport({
   updateAvailable: boolean;
   t: Translate;
 }): ReactNode {
+  const logBox = useRef<HTMLPreElement>(null);
+
+  // Pinned to the bottom as lines arrive: the interesting end of a live deploy
+  // log is the last line, and a box that stays at the top makes you scroll it
+  // every five seconds to see whether anything moved.
+  useEffect(() => {
+    const box = logBox.current;
+    if (box !== null) box.scrollTop = box.scrollHeight;
+  }, [run.logTail]);
+
   // Hiding the update button when no host agent exists was right -- it cannot
   // succeed. Saying nothing about it was not: the panel then reads "Update
   // available" and offers no way to take it, with the reason living only in the
@@ -83,11 +93,24 @@ function RunReport({
         <p className="text-secondary text-xs">{run.message}</p>
       )}
 
-      {/* Only on a failure, and only the tail. deploy.sh rolls back on a failed
-          migration or health check, so what matters is why -- and that is at the
-          end of the log, not in the three minutes of build output above it. */}
+      {/* Something that moves. A deploy takes minutes and restarts this API
+          partway through, so without an elapsed time "Deploying..." is
+          indistinguishable from a deploy that hung twenty minutes ago. */}
+      {run.state === 'running' && run.startedAt !== null && (
+        <p className="text-muted text-xs">
+          {t('settings.update.run.startedAt', { when: relativeTime(run.startedAt) })}
+        </p>
+      )}
+
+      {/* The tail: on a failure because that is where the reason is, and while
+          running because it is the only thing that says which step deploy.sh
+          reached. Not on success, where three minutes of build output adds
+          nothing to "Update complete". */}
       {run.logTail !== null && (
-        <pre className="bg-hovered text-secondary max-h-48 overflow-auto rounded p-2 text-xs">
+        <pre
+          ref={logBox}
+          className="bg-hovered text-secondary max-h-48 overflow-auto rounded p-2 text-xs"
+        >
           {run.logTail}
         </pre>
       )}

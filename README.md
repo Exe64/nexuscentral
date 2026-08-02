@@ -277,6 +277,19 @@ button appears in Settings from then on, with a confirmation that spells out wha
 the database is migrated, the application restarts, and the page stops loading for a few
 minutes.
 
+While a deploy runs, the panel shows how long it has been going and the tail of the deploy
+log, so you can see which step it reached. Expect the page to fail to load for a minute
+partway through — the deploy restarts the API, and carries on without it.
+
+If it stays on **"The request has not been picked up"**, the agent is not running. Check it
+from a shell:
+
+```bash
+systemctl list-timers nexuscentral-update      # is the timer scheduled?
+journalctl -u nexuscentral-update -n 50        # what happened on the last tick?
+tail -f /opt/apps/nexuscentral/control/update.log
+```
+
 Set `UPDATE_CHECK_ENABLED=false` to disable the check entirely.
 
 ---
