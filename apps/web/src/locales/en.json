@@ -397,5 +397,6 @@
   "topbar.update.failed": "Update failed",
   "settings.update.newestOnMain": "Newest on main",
   "settings.update.run.notConfigured": "In-app updating is not set up on this host, so there is nothing here that can run the deploy. It needs the nexuscentral-update systemd timer installed and UPDATE_CONTROL_DIR set — see README, In-app updates. Until then, deploy from a shell with ./deploy.sh.",
-  "settings.update.run.startedAt": "Started {when}."
+  "settings.update.run.startedAt": "Started {when}.",
+  "dashboard.layoutSaveFailed": "Could not save the layout: {message} Your arrangement will be back where it was after a refresh."
 }

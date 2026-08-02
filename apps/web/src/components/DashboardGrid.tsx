@@ -121,6 +121,26 @@ export function layoutEntries(layouts: Layouts): LayoutEntry[] {
   return entries;
 }
 
+/**
+ * A stable signature of what would be persisted.
+ *
+ * Compared instead of `JSON.stringify(layouts)`, which never matched: what
+ * react-grid-layout hands back carries its own bookkeeping (`moved`, `static`)
+ * and drops the `minW`/`minH` we put in, so two identical layouts stringified
+ * differently and the guard let every mount through. The result was a PATCH on
+ * every dashboard load, from a user who had touched nothing.
+ *
+ * Sorted, because the per-breakpoint arrays come back in whatever order the
+ * library kept them in -- measured, not assumed: a two-widget dashboard returned
+ * `lg` in one order and `md` in the other.
+ */
+function signature(entries: readonly LayoutEntry[]): string {
+  const ordered = [...entries].sort(
+    (a, b) => a.widgetId - b.widgetId || a.breakpoint.localeCompare(b.breakpoint),
+  );
+  return JSON.stringify(ordered);
+}
+
 export function DashboardGrid({
   widgets,
   payloads,
@@ -135,12 +155,12 @@ export function DashboardGrid({
   const layouts = useMemo(() => toLayouts(widgets), [widgets]);
 
   /** What was loaded, so an unchanged layout is never persisted. */
-  const persisted = useRef<string>(JSON.stringify(layouts));
+  const persisted = useRef<string>(signature(layoutEntries(layouts)));
   const pending = useRef<Layouts | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    persisted.current = JSON.stringify(layouts);
+    persisted.current = signature(layoutEntries(layouts));
   }, [layouts]);
 
   const flush = useCallback(() => {
@@ -148,13 +168,17 @@ export function DashboardGrid({
     pending.current = null;
     if (next === null) return;
 
-    const serialised = JSON.stringify(next);
-    // Only PATCH when the layout actually differs from what was loaded.
-    if (serialised === persisted.current) return;
-    persisted.current = serialised;
-
     const entries = layoutEntries(next);
-    if (entries.length > 0) onPersistLayout(entries);
+    // An empty grid has nothing to say; the first paint happens before the
+    // widgets have loaded and must not be mistaken for "the user cleared it".
+    if (entries.length === 0) return;
+
+    // Only PATCH when the layout actually differs from what was loaded.
+    const next_signature = signature(entries);
+    if (next_signature === persisted.current) return;
+    persisted.current = next_signature;
+
+    onPersistLayout(entries);
   }, [onPersistLayout]);
 
   const handleLayoutChange = useCallback(

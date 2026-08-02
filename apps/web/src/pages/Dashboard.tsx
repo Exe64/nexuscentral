@@ -45,8 +45,11 @@ export function Dashboard(): ReactNode {
   const data = useDashboardData(dashboardId);
 
   // `.mutate` is stable across renders while the mutation object is not; the grid
-  // hands these to memoised frames, so the identity matters.
-  const { mutate: saveLayout } = useSaveLayout();
+  // hands these to memoised frames, so the identity matters. The mutation itself
+  // is kept for its error: a layout save is the one action whose only feedback
+  // used to be whether it was still there after a refresh.
+  const layoutSave = useSaveLayout();
+  const { mutate: saveLayout } = layoutSave;
   const { mutate: refreshWidget } = useRefreshWidget();
   const { mutate: removeWidget } = useDeleteWidget();
 
@@ -154,6 +157,15 @@ export function Dashboard(): ReactNode {
           >
             {t('dashboard.addWidget')}
           </button>
+        </p>
+      )}
+
+      {/* A layout save that fails used to fail in silence, and the only symptom
+          was the arrangement being back where it started after a refresh --
+          which reads as "the feature does not work" rather than as an error. */}
+      {layoutSave.error !== null && (
+        <p role="alert" className="text-negative mb-3 text-sm">
+          {t('dashboard.layoutSaveFailed', { message: layoutSave.error.message })}
         </p>
       )}
 
